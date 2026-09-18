@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 @Component({
-  selector: 'fk-shell',
+  selector: 'fc-shell',
   standalone: true,
   imports: [RouterLink, RouterLinkActive],
   templateUrl: './shell.component.html',

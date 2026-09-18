@@ -7,7 +7,7 @@ import { HttpInterceptorFn } from '@angular/common/http';
  * este interceptor já deixa o transporte pronto.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const token = localStorage.getItem('finkeeper_token');
+  const token = localStorage.getItem('financecash_token');
 
   if (!token) {
     return next(req);

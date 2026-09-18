@@ -15,7 +15,7 @@ function lastDayOfMonth(date = new Date()): string {
 }
 
 @Component({
-  selector: 'fk-entries-list',
+  selector: 'fc-entries-list',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './entries-list.component.html',

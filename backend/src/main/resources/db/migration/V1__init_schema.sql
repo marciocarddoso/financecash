@@ -1,4 +1,4 @@
--- Schema inicial do FinKeeper. Ver docs/MODELO-DOMINIO.md para a explicação de cada entidade.
+-- Schema inicial do FinanceCash. Ver docs/MODELO-DOMINIO.md para a explicação de cada entidade.
 
 create extension if not exists "uuid-ossp";
 

@@ -1,11 +1,11 @@
-.fk-header-row {
+.fc-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.25rem;
 }
 
-.fk-form {
+.fc-form {
   margin-bottom: 1.5rem;
 
   &__row {
@@ -18,12 +18,12 @@
       flex-direction: column;
       gap: 0.3rem;
       font-size: 0.85rem;
-      color: var(--fk-color-text-muted);
+      color: var(--fc-color-text-muted);
       flex: 1;
 
       input, select {
         padding: 0.45rem 0.6rem;
-        border: 1px solid var(--fk-color-border);
+        border: 1px solid var(--fc-color-border);
         border-radius: 6px;
         font-size: 0.95rem;
       }
@@ -31,30 +31,30 @@
   }
 }
 
-.fk-muted {
-  color: var(--fk-color-text-muted);
+.fc-muted {
+  color: var(--fc-color-text-muted);
   font-size: 0.85rem;
 }
 
-.fk-amount--receita {
-  color: var(--fk-color-primary);
+.fc-amount--receita {
+  color: var(--fc-color-primary);
   font-weight: 600;
 }
 
-.fk-actions {
+.fc-actions {
   display: flex;
   gap: 0.75rem;
 }
 
-.fk-link {
+.fc-link {
   background: none;
   border: none;
-  color: var(--fk-color-primary);
+  color: var(--fc-color-primary);
   cursor: pointer;
   font-size: 0.85rem;
   padding: 0;
 
   &--danger {
-    color: var(--fk-color-danger);
+    color: var(--fc-color-danger);
   }
 }

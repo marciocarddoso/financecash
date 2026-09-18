@@ -1,4 +1,4 @@
-# FinKeeper
+# FinanceCash
 
 Sistema de controle financeiro pessoal — substitui a planilha de Excel usada para lançar boletos, despesas, parcelamentos, salário, décimo terceiro e saldos bancários, trazendo tudo para um sistema com backend em **Java/Spring Boot** e frontend em **Angular**.
 
@@ -6,7 +6,7 @@ Sistema de controle financeiro pessoal — substitui a planilha de Excel usada p
 
 ## Por que este projeto existe
 
-Hoje o controle financeiro é feito manualmente em uma planilha: lançamento de boletos e despesas, provisionamento de compras parceladas, salário, décimo terceiro e reajustes de contas fixas, além de acompanhamento de saldos em diferentes bancos e aplicações em CDI. O objetivo do FinKeeper é profissionalizar esse controle, mantendo a mesma lógica de uso (lançamentos, recorrências, parcelamentos, consolidação de saldos, relatórios de gastos) em um sistema com persistência, API e uma interface própria — eliminando a manutenção manual da planilha e abrindo caminho para automações (leitura de boletos, integração bancária, alertas).
+Hoje o controle financeiro é feito manualmente em uma planilha: lançamento de boletos e despesas, provisionamento de compras parceladas, salário, décimo terceiro e reajustes de contas fixas, além de acompanhamento de saldos em diferentes bancos e aplicações em CDI. O objetivo do FinanceCash é profissionalizar esse controle, mantendo a mesma lógica de uso (lançamentos, recorrências, parcelamentos, consolidação de saldos, relatórios de gastos) em um sistema com persistência, API e uma interface própria — eliminando a manutenção manual da planilha e abrindo caminho para automações (leitura de boletos, integração bancária, alertas).
 
 ## O que o sistema já resolve (escopo desta primeira versão)
 
@@ -59,7 +59,7 @@ Detalhes de camadas, modelo de domínio e decisões técnicas em [`docs/ARQUITET
 ## Estrutura do repositório
 
 ```
-finkeeper/
+financecash/
 ├── backend/     # API Spring Boot (Java 21 / Maven)
 ├── frontend/    # SPA Angular
 ├── docs/        # Arquitetura, modelo de domínio, roadmap

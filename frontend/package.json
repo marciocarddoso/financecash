@@ -1,5 +1,5 @@
 {
-  "name": "finkeeper-frontend",
+  "name": "financecash-frontend",
   "version": "0.1.0",
   "scripts": {
     "start": "ng serve",

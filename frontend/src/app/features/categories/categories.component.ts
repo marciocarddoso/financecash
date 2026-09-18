@@ -5,35 +5,35 @@ import { CategoryService } from '../../core/services/category.service';
 import { Category } from '../../core/models/category.model';
 
 @Component({
-  selector: 'fk-categories',
+  selector: 'fc-categories',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <h1>Categorias</h1>
 
-    <form class="fk-card fk-inline-form" [formGroup]="form" (ngSubmit)="submit()">
+    <form class="fc-card fc-inline-form" [formGroup]="form" (ngSubmit)="submit()">
       <input type="text" placeholder="Nome (ex.: Mercado)" formControlName="name" />
       <select formControlName="type">
         <option value="DESPESA">Despesa</option>
         <option value="RECEITA">Receita</option>
       </select>
       <input type="color" formControlName="colorHex" />
-      <button class="fk-button" type="submit" [disabled]="form.invalid">Adicionar</button>
+      <button class="fc-button" type="submit" [disabled]="form.invalid">Adicionar</button>
     </form>
 
-    <div class="fk-card">
+    <div class="fc-card">
       @if (categories().length === 0) {
         <p>Nenhuma categoria cadastrada ainda.</p>
       } @else {
-        <table class="fk-table">
+        <table class="fc-table">
           <thead><tr><th>Nome</th><th>Tipo</th><th>Cor</th><th></th></tr></thead>
           <tbody>
             @for (category of categories(); track category.id) {
               <tr>
                 <td>{{ category.name }}</td>
                 <td>{{ category.type }}</td>
-                <td><span class="fk-color-dot" [style.background]="category.colorHex ?? '#ccc'"></span></td>
-                <td><button class="fk-link fk-link--danger" (click)="remove(category)">Remover</button></td>
+                <td><span class="fc-color-dot" [style.background]="category.colorHex ?? '#ccc'"></span></td>
+                <td><button class="fc-link fc-link--danger" (click)="remove(category)">Remover</button></td>
               </tr>
             }
           </tbody>
@@ -42,12 +42,12 @@ import { Category } from '../../core/models/category.model';
     </div>
   `,
   styles: [`
-    .fk-inline-form { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
-    .fk-inline-form input[type="text"] { flex: 1; padding: 0.45rem 0.6rem; border: 1px solid var(--fk-color-border); border-radius: 6px; }
-    .fk-inline-form select { padding: 0.45rem 0.6rem; border: 1px solid var(--fk-color-border); border-radius: 6px; }
-    .fk-color-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; }
-    .fk-link { background: none; border: none; color: var(--fk-color-primary); cursor: pointer; }
-    .fk-link--danger { color: var(--fk-color-danger); }
+    .fc-inline-form { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
+    .fc-inline-form input[type="text"] { flex: 1; padding: 0.45rem 0.6rem; border: 1px solid var(--fc-color-border); border-radius: 6px; }
+    .fc-inline-form select { padding: 0.45rem 0.6rem; border: 1px solid var(--fc-color-border); border-radius: 6px; }
+    .fc-color-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; }
+    .fc-link { background: none; border: none; color: var(--fc-color-primary); cursor: pointer; }
+    .fc-link--danger { color: var(--fc-color-danger); }
   `],
 })
 export class CategoriesComponent implements OnInit {

@@ -1,11 +1,11 @@
-.fk-shell {
+.fc-shell {
   display: flex;
   min-height: 100vh;
 }
 
-.fk-sidebar {
+.fc-sidebar {
   width: 220px;
-  background: var(--fk-color-primary-dark);
+  background: var(--fc-color-primary-dark);
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -39,7 +39,7 @@
   }
 }
 
-.fk-content {
+.fc-content {
   flex: 1;
   padding: 1.75rem 2rem;
   max-width: 1100px;

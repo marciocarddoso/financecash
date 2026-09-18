@@ -4,7 +4,7 @@ import { DashboardService } from '../../core/services/dashboard.service';
 import { DashboardResponse } from '../../core/models/dashboard.model';
 
 @Component({
-  selector: 'fk-dashboard',
+  selector: 'fc-dashboard',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './dashboard.component.html',

@@ -1,12 +1,12 @@
 spring:
   application:
-    name: finkeeper-backend
+    name: financecash-backend
   profiles:
     active: dev
   datasource:
-    url: jdbc:postgresql://localhost:5432/finkeeper
-    username: finkeeper
-    password: finkeeper
+    url: jdbc:postgresql://localhost:5432/financecash
+    username: financecash
+    password: financecash
   jpa:
     hibernate:
       ddl-auto: validate
@@ -21,7 +21,7 @@ spring:
 server:
   port: 8080
 
-finkeeper:
+financecash:
   jwt:
     secret: ${JWT_SECRET:troque-esta-chave-em-producao-para-algo-com-pelo-menos-256-bits}
     expiration-minutes: 720
@@ -32,4 +32,4 @@ springdoc:
 
 logging:
   level:
-    br.com.finkeeper: INFO
+    br.com.financecash: INFO

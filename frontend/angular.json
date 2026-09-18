@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "finkeeper-frontend": {
+    "financecash-frontend": {
       "projectType": "application",
       "root": "",
       "sourceRoot": "src",
@@ -12,7 +12,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/finkeeper-frontend",
+            "outputPath": "dist/financecash-frontend",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
@@ -43,8 +43,8 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
-            "production": { "buildTarget": "finkeeper-frontend:build:production" },
-            "development": { "buildTarget": "finkeeper-frontend:build:development" }
+            "production": { "buildTarget": "financecash-frontend:build:production" },
+            "development": { "buildTarget": "financecash-frontend:build:development" }
           },
           "defaultConfiguration": "development"
         },

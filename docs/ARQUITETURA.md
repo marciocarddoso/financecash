@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-O FinKeeper é um monorepo com dois módulos independentes que se comunicam por HTTP/JSON:
+O FinanceCash é um monorepo com dois módulos independentes que se comunicam por HTTP/JSON:
 
 - **backend/** — API REST em Spring Boot, organizada em camadas inspiradas em arquitetura hexagonal simplificada (sem o overhead de portas/adaptadores completo, mas com separação clara de responsabilidades).
 - **frontend/** — SPA Angular, standalone components, consumindo a API via services HTTP tipados.
@@ -12,7 +12,7 @@ O monorepo foi escolhido (em vez de dois repositórios separados) porque o proje
 ## Camadas do backend
 
 ```
-br.com.finkeeper
+br.com.financecash
 ├── domain
 │   ├── model         # Entidades JPA + enums de domínio (sem dependência de framework web)
 │   └── repository     # Interfaces Spring Data JPA

@@ -3,13 +3,13 @@ import { RouterOutlet } from '@angular/router';
 import { ShellComponent } from './shared/layout/shell.component';
 
 @Component({
-  selector: 'fk-root',
+  selector: 'fc-root',
   standalone: true,
   imports: [RouterOutlet, ShellComponent],
   template: `
-    <fk-shell>
+    <fc-shell>
       <router-outlet></router-outlet>
-    </fk-shell>
+    </fc-shell>
   `,
 })
 export class AppComponent {}

@@ -1,5 +1,6 @@
 package br.com.financecash.application.service;
 
+import br.com.financecash.application.dto.EntryBatchOperationResult;
 import br.com.financecash.application.dto.EntryCreateRequest;
 import br.com.financecash.application.dto.EntryDTO;
 import br.com.financecash.domain.model.*;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -89,5 +91,49 @@ public class EntryService {
             throw new ResourceNotFoundException("Lançamento não encontrado: " + entryId);
         }
         entryRepository.deleteById(entryId);
+    }
+
+    /**
+     * Marca vários lançamentos como pagos de uma vez (Fase 1 do roadmap: "edição em
+     * lote"). ids que não existem ou não pertencem ao usuário logado entram em
+     * notFound() em vez de derrubar a operação inteira — ver Javadoc de
+     * EntryBatchOperationResult.
+     */
+    @Transactional
+    public EntryBatchOperationResult batchMarkAsPaid(List<UUID> ids, LocalDate paymentDate) {
+        AppUser user = currentUserProvider.getCurrentUser();
+        LocalDate effectiveDate = paymentDate != null ? paymentDate : LocalDate.now();
+
+        List<UUID> notFound = new ArrayList<>();
+        int affected = 0;
+        for (UUID id : ids) {
+            Entry entry = entryRepository.findById(id).orElse(null);
+            if (entry == null || !entry.getOwner().getId().equals(user.getId())) {
+                notFound.add(id);
+                continue;
+            }
+            entry.markAsPaid(effectiveDate);
+            affected++;
+        }
+        return new EntryBatchOperationResult(affected, notFound);
+    }
+
+    /** Exclui vários lançamentos de uma vez — mesma semântica de notFound() acima. */
+    @Transactional
+    public EntryBatchOperationResult batchDelete(List<UUID> ids) {
+        AppUser user = currentUserProvider.getCurrentUser();
+
+        List<UUID> notFound = new ArrayList<>();
+        int affected = 0;
+        for (UUID id : ids) {
+            Entry entry = entryRepository.findById(id).orElse(null);
+            if (entry == null || !entry.getOwner().getId().equals(user.getId())) {
+                notFound.add(id);
+                continue;
+            }
+            entryRepository.delete(entry);
+            affected++;
+        }
+        return new EntryBatchOperationResult(affected, notFound);
     }
 }

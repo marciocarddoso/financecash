@@ -41,6 +41,18 @@
   </form>
 }
 
+@if (selectedIds().size > 0) {
+  <div class="fc-card fc-batch-bar">
+    <span>{{ selectedIds().size }} selecionado(s)</span>
+    <button class="fc-button fc-button--small" [disabled]="batchWorking()" (click)="batchMarkAsPaid()">
+      Marcar selecionados como pagos
+    </button>
+    <button class="fc-button fc-button--small fc-button--danger" [disabled]="batchWorking()" (click)="batchDelete()">
+      Excluir selecionados
+    </button>
+  </div>
+}
+
 <div class="fc-card">
   @if (loading()) {
     <p>Carregando...</p>
@@ -50,12 +62,14 @@
     <table class="fc-table">
       <thead>
         <tr>
+          <th><input type="checkbox" [checked]="allVisibleSelected()" (change)="toggleSelectAllVisible()" /></th>
           <th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th><th>Origem</th><th></th>
         </tr>
       </thead>
       <tbody>
         @for (entry of entries(); track entry.id) {
           <tr>
+            <td><input type="checkbox" [checked]="isSelected(entry)" (change)="toggleSelected(entry)" /></td>
             <td>{{ entry.dueDate }}</td>
             <td>
               {{ entry.description }}

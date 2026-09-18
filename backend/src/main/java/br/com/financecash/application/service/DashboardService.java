@@ -36,7 +36,17 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard(LocalDate referenceDate) {
-        AppUser user = currentUserProvider.getCurrentUser();
+        return getDashboardForUser(currentUserProvider.getCurrentUser(), referenceDate);
+    }
+
+    /**
+     * Mesma lógica de {@link #getDashboard(LocalDate)}, mas recebendo o AppUser
+     * diretamente em vez de resolvê-lo via CurrentUserProvider/SecurityContext — usado
+     * pelo DueSoonAndBalanceNotificationScheduler, que roda fora de uma requisição HTTP
+     * (mesma razão pela qual RecurringEntryScheduler não usa CurrentUserProvider).
+     */
+    @Transactional(readOnly = true)
+    public DashboardResponse getDashboardForUser(AppUser user, LocalDate referenceDate) {
         YearMonth month = YearMonth.from(referenceDate);
         LocalDate monthStart = month.atDay(1);
         LocalDate monthEnd = month.atEndOfMonth();

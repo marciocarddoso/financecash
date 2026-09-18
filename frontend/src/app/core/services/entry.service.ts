@@ -2,7 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Entry, EntryCreateRequest } from '../models/entry.model';
+import {
+  Entry,
+  EntryBatchDeleteRequest,
+  EntryBatchOperationResult,
+  EntryBatchPayRequest,
+  EntryCreateRequest,
+} from '../models/entry.model';
 
 @Injectable({ providedIn: 'root' })
 export class EntryService {
@@ -25,5 +31,13 @@ export class EntryService {
 
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  batchMarkAsPaid(request: EntryBatchPayRequest): Observable<EntryBatchOperationResult> {
+    return this.http.patch<EntryBatchOperationResult>(`${this.baseUrl}/batch-pay`, request);
+  }
+
+  batchDelete(request: EntryBatchDeleteRequest): Observable<EntryBatchOperationResult> {
+    return this.http.post<EntryBatchOperationResult>(`${this.baseUrl}/batch-delete`, request);
   }
 }

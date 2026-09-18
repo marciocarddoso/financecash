@@ -12,8 +12,8 @@ Ordenado por valor imediato para o uso pessoal primeiro; itens de "produto" (app
 
 ## Fase 1 — Uso diário real (substituir a planilha de vez)
 - [x] Importar o histórico atual da planilha via CSV (`POST /api/entries/import-csv` + `scripts/import_numbers_to_csv.py` para extrair as abas Bradesco/Nubank/C6Bank da planilha Numbers).
-- [ ] Edição em lote de lançamentos (ex.: marcar vários como pagos de uma vez).
-- [ ] Tela de "fechamento do mês" comparando previsto vs. realizado.
+- [x] Edição em lote de lançamentos (`PATCH /api/entries/batch-pay` e `POST /api/entries/batch-delete`, com seleção múltipla na tela de Lançamentos).
+- [x] Tela de "fechamento do mês" comparando previsto vs. realizado (`GET /api/month-closing`, geral e por categoria).
 - [ ] Anexar comprovante/boleto (PDF/imagem) a um lançamento.
 - [ ] Filtros avançados nos relatórios (por conta, por cartão, por faixa de valor).
 
@@ -22,15 +22,18 @@ Ordenado por valor imediato para o uso pessoal primeiro; itens de "produto" (app
 - [ ] **Boletos, passo 2**: automação completa via Open Finance (ver `docs/OPEN-FINANCE-E-BOLETOS.md`, seção 1.2) — parser de e-mail foi avaliado e descartado (esforço/manutenção alto para o ganho, já coberto em boa parte pela leitura de linha digitável).
 - [ ] **Cartões de crédito por banco**: importação de fatura via OFX/CSV exportado do banco como primeiro passo (não depende de integração aprovada); Open Finance como evolução.
 - [ ] **PIX**: mesmo tratamento — OFX/CSV do extrato como primeiro passo, Open Finance depois.
-- [ ] **Open Finance**: integração via agregador (Pluggy, tier "Meu Pluggy" gratuito para uso pessoal) em vez de virar participante direto — decisão e desenho detalhados em `docs/OPEN-FINANCE-E-BOLETOS.md`, seção 2. Ainda não implementado.
+- [ ] **Open Finance**: integração via agregador (Pluggy, tier "Meu Pluggy" gratuito para uso pessoal) em vez de virar participante direto — decisão e desenho detalhados em `docs/OPEN-FINANCE-E-BOLETOS.md`, seção 2. Ainda não implementado (próxima frente depois desta leva de features).
 - [ ] Conciliação: ao importar, o sistema sugere match com lançamentos manuais já existentes (evitar duplicidade).
 
 ## Fase 3 — Alertas e automação de rotina
 - [x] Job agendado (`@Scheduled`) que roda diariamente — `RecurringEntryScheduler`:
   - [x] Gera os próximos lançamentos recorrentes automaticamente para todos os usuários ativos (antes só sob demanda).
-  - Verifica contas vencendo nas próximas 24-48h e dispara notificação.
-  - Verifica projeção de saldo negativo no mês e alerta.
-- [ ] Canal de notificação: e-mail primeiro (mais simples, SMTP/SES), push depois (junto com o app mobile).
+- [x] `DueSoonAndBalanceNotificationScheduler` (roda logo depois do job acima):
+  - [x] Verifica contas vencendo nos próximos dias (`financecash.notifications.due-soon-days`, default 2) e dispara notificação.
+  - [x] Verifica projeção de saldo negativo no mês e alerta.
+- [x] Canal de notificação: e-mail via SMTP (`NotificationService` + `SmtpEmailSender`, configurável em `application.yml`/variáveis `MAIL_*`) — cada usuário liga/desliga cada alerta em `/preferencias` (`GET`/`PUT /api/me/notification-preferences`).
+- [ ] SMS: preferência e campo de telefone já existem no modelo (`AppUser.notifySmsEnabled`), mas nenhum provedor está integrado ainda (`SmsSender`/`NoOpSmsSender` só loga) — exige conta paga em um serviço como Twilio ou Zenvia.
+- [ ] Push, junto com o app mobile.
 
 ## Fase 4 — Mobile
 - [ ] Empacotar o frontend Angular com **Capacitor** (reaproveita 100% do código Angular, gera apk/ipa) — avaliar Ionic components só se a UI exigir comportamento mais "nativo".

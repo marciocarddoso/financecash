@@ -34,6 +34,9 @@ export class EntriesListComponent implements OnInit {
   readonly from = signal(firstDayOfMonth());
   readonly to = signal(lastDayOfMonth());
 
+  readonly selectedIds = signal<Set<string>>(new Set());
+  readonly batchWorking = signal(false);
+
   readonly form = this.fb.nonNullable.group({
     description: ['', Validators.required],
     amount: [0, [Validators.required, Validators.min(0.01)]],
@@ -49,6 +52,7 @@ export class EntriesListComponent implements OnInit {
 
   reload(): void {
     this.loading.set(true);
+    this.selectedIds.set(new Set());
     this.entryService.listBetween(this.from(), this.to()).subscribe((entries) => {
       this.entries.set(entries);
       this.loading.set(false);
@@ -80,5 +84,58 @@ export class EntriesListComponent implements OnInit {
 
   remove(entry: Entry): void {
     this.entryService.delete(entry.id).subscribe(() => this.reload());
+  }
+
+  isSelected(entry: Entry): boolean {
+    return this.selectedIds().has(entry.id);
+  }
+
+  toggleSelected(entry: Entry): void {
+    const next = new Set(this.selectedIds());
+    if (next.has(entry.id)) {
+      next.delete(entry.id);
+    } else {
+      next.add(entry.id);
+    }
+    this.selectedIds.set(next);
+  }
+
+  allVisibleSelected(): boolean {
+    const entries = this.entries();
+    return entries.length > 0 && entries.every((e) => this.selectedIds().has(e.id));
+  }
+
+  toggleSelectAllVisible(): void {
+    if (this.allVisibleSelected()) {
+      this.selectedIds.set(new Set());
+    } else {
+      this.selectedIds.set(new Set(this.entries().map((e) => e.id)));
+    }
+  }
+
+  batchMarkAsPaid(): void {
+    const ids = Array.from(this.selectedIds());
+    if (ids.length === 0) return;
+    this.batchWorking.set(true);
+    this.entryService.batchMarkAsPaid({ ids }).subscribe({
+      next: () => {
+        this.batchWorking.set(false);
+        this.reload();
+      },
+      error: () => this.batchWorking.set(false),
+    });
+  }
+
+  batchDelete(): void {
+    const ids = Array.from(this.selectedIds());
+    if (ids.length === 0) return;
+    this.batchWorking.set(true);
+    this.entryService.batchDelete({ ids }).subscribe({
+      next: () => {
+        this.batchWorking.set(false);
+        this.reload();
+      },
+      error: () => this.batchWorking.set(false),
+    });
   }
 }

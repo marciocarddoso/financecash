@@ -34,6 +34,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/importar/importar.component').then((m) => m.ImportarComponent),
   },
   {
+    path: 'fechamento',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/fechamento/fechamento.component').then((m) => m.FechamentoComponent),
+  },
+  {
     path: 'categorias',
     canActivate: [authGuard],
     loadComponent: () => import('./features/categories/categories.component').then((m) => m.CategoriesComponent),
@@ -52,6 +57,11 @@ export const routes: Routes = [
     path: 'relatorios',
     canActivate: [authGuard],
     loadComponent: () => import('./features/reports/reports.component').then((m) => m.ReportsComponent),
+  },
+  {
+    path: 'preferencias',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/preferencias/preferencias.component').then((m) => m.PreferenciasComponent),
   },
   { path: '**', redirectTo: 'dashboard' },
 ];

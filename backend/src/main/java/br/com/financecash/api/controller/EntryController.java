@@ -1,5 +1,8 @@
 package br.com.financecash.api.controller;
 
+import br.com.financecash.application.dto.EntryBatchDeleteRequest;
+import br.com.financecash.application.dto.EntryBatchOperationResult;
+import br.com.financecash.application.dto.EntryBatchPayRequest;
 import br.com.financecash.application.dto.EntryCreateRequest;
 import br.com.financecash.application.dto.EntryDTO;
 import br.com.financecash.application.service.EntryService;
@@ -46,5 +49,17 @@ public class EntryController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         entryService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Edição em lote: marca vários lançamentos como pagos numa chamada só. */
+    @PatchMapping("/batch-pay")
+    public EntryBatchOperationResult batchMarkAsPaid(@Valid @RequestBody EntryBatchPayRequest request) {
+        return entryService.batchMarkAsPaid(request.ids(), request.paymentDate());
+    }
+
+    /** Edição em lote: exclui vários lançamentos numa chamada só. */
+    @PostMapping("/batch-delete")
+    public EntryBatchOperationResult batchDelete(@Valid @RequestBody EntryBatchDeleteRequest request) {
+        return entryService.batchDelete(request.ids());
     }
 }

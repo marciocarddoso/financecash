@@ -17,6 +17,17 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 server:
   port: 8080
@@ -30,6 +41,15 @@ financecash:
     cron: "0 0 5 * * *"
     # Quantos meses à frente projetar os lançamentos recorrentes a cada execução.
     months-ahead: 12
+  notifications:
+    # Roda todo dia às 06:00, uma hora depois da geração de recorrências — ver
+    # DueSoonAndBalanceNotificationScheduler.
+    cron: "0 0 6 * * *"
+    # Quantos dias à frente conta como "vencendo em breve" para o alerta.
+    due-soon-days: 2
+    # Remetente usado nos e-mails de alerta. Sem MAIL_HOST configurado, o envio
+    # simplesmente falha e é logado — não derruba o job (ver SmtpEmailSender).
+    email-from: ${MAIL_FROM:no-reply@financecash.local}
 
 springdoc:
   swagger-ui:

@@ -31,3 +31,17 @@ export interface EntryCreateRequest {
   accountId?: string;
   creditCardId?: string;
 }
+
+export interface EntryBatchPayRequest {
+  ids: string[];
+  paymentDate?: string | null;
+}
+
+export interface EntryBatchDeleteRequest {
+  ids: string[];
+}
+
+export interface EntryBatchOperationResult {
+  affected: number;
+  notFound: string[];
+}

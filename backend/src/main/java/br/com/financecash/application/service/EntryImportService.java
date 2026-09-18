@@ -83,7 +83,7 @@ public class EntryImportService {
                 .setSkipHeaderRecord(true)
                 .setTrim(true)
                 .setIgnoreEmptyLines(true)
-                .get();
+                .build();
 
         try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
              CSVParser parser = format.parse(reader)) {

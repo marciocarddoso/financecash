@@ -1,0 +1,7 @@
+logging:
+  level:
+    br.com.finkeeper: DEBUG
+    org.hibernate.SQL: DEBUG
+
+# Em dev, permite recriar o schema rapidamente caso queira testar sem Flyway (opcional).
+# Por padrao mantemos Flyway como fonte da verdade tambem em dev.

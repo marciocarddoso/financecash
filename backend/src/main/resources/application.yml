@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: finkeeper-backend
+  profiles:
+    active: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/finkeeper
+    username: finkeeper
+    password: finkeeper
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+finkeeper:
+  jwt:
+    secret: ${JWT_SECRET:troque-esta-chave-em-producao-para-algo-com-pelo-menos-256-bits}
+    expiration-minutes: 720
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    br.com.finkeeper: INFO

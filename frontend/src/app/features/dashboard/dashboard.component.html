@@ -1,0 +1,73 @@
+<h1>Dashboard</h1>
+
+@if (loading()) {
+  <p>Carregando...</p>
+}
+
+@if (error()) {
+  <div class="fk-card fk-card--error">{{ error() }}</div>
+}
+
+@if (dashboard(); as d) {
+  <div class="fk-summary-grid">
+    <div class="fk-card">
+      <span class="fk-summary-label">A pagar hoje</span>
+      <span class="fk-summary-value">{{ d.totalPendingToday | currency: 'BRL' }}</span>
+    </div>
+    <div class="fk-card">
+      <span class="fk-summary-label">A pagar no mês</span>
+      <span class="fk-summary-value">{{ d.totalPendingMonth | currency: 'BRL' }}</span>
+    </div>
+    <div class="fk-card">
+      <span class="fk-summary-label">Saldo consolidado (bancos)</span>
+      <span class="fk-summary-value">{{ d.consolidatedBalance | currency: 'BRL' }}</span>
+    </div>
+    <div class="fk-card" [class.fk-card--warning]="d.projectedBalanceEndOfMonth < 0">
+      <span class="fk-summary-label">Saldo projetado no fim do mês</span>
+      <span class="fk-summary-value">{{ d.projectedBalanceEndOfMonth | currency: 'BRL' }}</span>
+    </div>
+  </div>
+
+  <section class="fk-card">
+    <h2>Contas de hoje ({{ d.referenceDate }})</h2>
+    @if (d.dueToday.length === 0) {
+      <p>Nenhum lançamento com vencimento hoje. 🎉</p>
+    } @else {
+      <table class="fk-table">
+        <thead>
+          <tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          @for (entry of d.dueToday; track entry.id) {
+            <tr>
+              <td>{{ entry.description }}</td>
+              <td>{{ entry.categoryName }}</td>
+              <td>{{ entry.amount | currency: 'BRL' }}</td>
+              <td><span class="fk-badge fk-badge--{{ entry.status.toLowerCase() }}">{{ entry.status }}</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </section>
+
+  @if (d.overdue.length > 0) {
+    <section class="fk-card fk-card--warning">
+      <h2>Atrasados</h2>
+      <table class="fk-table">
+        <thead>
+          <tr><th>Descrição</th><th>Vencimento</th><th>Valor</th></tr>
+        </thead>
+        <tbody>
+          @for (entry of d.overdue; track entry.id) {
+            <tr>
+              <td>{{ entry.description }}</td>
+              <td>{{ entry.dueDate }}</td>
+              <td>{{ entry.amount | currency: 'BRL' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+}

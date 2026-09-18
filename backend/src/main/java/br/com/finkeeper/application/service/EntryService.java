@@ -1,0 +1,93 @@
+package br.com.finkeeper.application.service;
+
+import br.com.finkeeper.application.dto.EntryCreateRequest;
+import br.com.finkeeper.application.dto.EntryDTO;
+import br.com.finkeeper.domain.model.*;
+import br.com.finkeeper.domain.repository.AccountRepository;
+import br.com.finkeeper.domain.repository.CategoryRepository;
+import br.com.finkeeper.domain.repository.CreditCardRepository;
+import br.com.finkeeper.domain.repository.EntryRepository;
+import br.com.finkeeper.exception.ResourceNotFoundException;
+import br.com.finkeeper.security.CurrentUserProvider;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class EntryService {
+
+    private final EntryRepository entryRepository;
+    private final CategoryRepository categoryRepository;
+    private final AccountRepository accountRepository;
+    private final CreditCardRepository creditCardRepository;
+    private final CurrentUserProvider currentUserProvider;
+
+    public EntryService(EntryRepository entryRepository, CategoryRepository categoryRepository,
+                         AccountRepository accountRepository, CreditCardRepository creditCardRepository,
+                         CurrentUserProvider currentUserProvider) {
+        this.entryRepository = entryRepository;
+        this.categoryRepository = categoryRepository;
+        this.accountRepository = accountRepository;
+        this.creditCardRepository = creditCardRepository;
+        this.currentUserProvider = currentUserProvider;
+    }
+
+    @Transactional(readOnly = true)
+    public List<EntryDTO> listBetween(LocalDate from, LocalDate to) {
+        AppUser user = currentUserProvider.getCurrentUser();
+        return entryRepository.findByOwnerIdAndDueDateBetweenOrderByDueDateAsc(user.getId(), from, to)
+                .stream().map(EntryDTO::from).toList();
+    }
+
+    @Transactional
+    public EntryDTO create(EntryCreateRequest request) {
+        AppUser user = currentUserProvider.getCurrentUser();
+
+        Category category = categoryRepository.findById(request.categoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada: " + request.categoryId()));
+
+        Account account = request.accountId() != null
+                ? accountRepository.findById(request.accountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Conta não encontrada: " + request.accountId()))
+                : null;
+
+        CreditCard creditCard = request.creditCardId() != null
+                ? creditCardRepository.findById(request.creditCardId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado: " + request.creditCardId()))
+                : null;
+
+        Entry entry = Entry.builder()
+                .owner(user)
+                .description(request.description())
+                .amount(request.amount())
+                .dueDate(request.dueDate())
+                .type(request.type())
+                .status(EntryStatus.PENDENTE)
+                .origin(EntryOrigin.MANUAL)
+                .category(category)
+                .account(account)
+                .creditCard(creditCard)
+                .build();
+
+        return EntryDTO.from(entryRepository.save(entry));
+    }
+
+    @Transactional
+    public EntryDTO markAsPaid(UUID entryId, LocalDate paymentDate) {
+        Entry entry = entryRepository.findById(entryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lançamento não encontrado: " + entryId));
+        entry.markAsPaid(paymentDate != null ? paymentDate : LocalDate.now());
+        return EntryDTO.from(entry);
+    }
+
+    @Transactional
+    public void delete(UUID entryId) {
+        if (!entryRepository.existsById(entryId)) {
+            throw new ResourceNotFoundException("Lançamento não encontrado: " + entryId);
+        }
+        entryRepository.deleteById(entryId);
+    }
+}

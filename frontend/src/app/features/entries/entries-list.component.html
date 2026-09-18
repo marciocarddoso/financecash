@@ -1,0 +1,81 @@
+<div class="fk-header-row">
+  <h1>Lançamentos</h1>
+  <button class="fk-button" (click)="toggleForm()">{{ showForm() ? 'Cancelar' : 'Novo lançamento' }}</button>
+</div>
+
+@if (showForm()) {
+  <form class="fk-card fk-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="fk-form__row">
+      <label>
+        Descrição
+        <input type="text" formControlName="description" />
+      </label>
+      <label>
+        Valor
+        <input type="number" step="0.01" formControlName="amount" />
+      </label>
+    </div>
+    <div class="fk-form__row">
+      <label>
+        Vencimento
+        <input type="date" formControlName="dueDate" />
+      </label>
+      <label>
+        Tipo
+        <select formControlName="type">
+          <option value="DESPESA">Despesa</option>
+          <option value="RECEITA">Receita</option>
+        </select>
+      </label>
+      <label>
+        Categoria
+        <select formControlName="categoryId">
+          <option value="" disabled>Selecione</option>
+          @for (category of categories(); track category.id) {
+            <option [value]="category.id">{{ category.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+    <button class="fk-button" type="submit" [disabled]="form.invalid">Salvar</button>
+  </form>
+}
+
+<div class="fk-card">
+  @if (loading()) {
+    <p>Carregando...</p>
+  } @else if (entries().length === 0) {
+    <p>Nenhum lançamento no período.</p>
+  } @else {
+    <table class="fk-table">
+      <thead>
+        <tr>
+          <th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th><th>Origem</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of entries(); track entry.id) {
+          <tr>
+            <td>{{ entry.dueDate }}</td>
+            <td>
+              {{ entry.description }}
+              @if (entry.installmentNumber) {
+                <span class="fk-muted"> ({{ entry.installmentNumber }}/{{ entry.installmentsCount }})</span>
+              }
+            </td>
+            <td>{{ entry.categoryName }}</td>
+            <td [class.fk-amount--receita]="entry.type === 'RECEITA'">{{ entry.amount | currency: 'BRL' }}</td>
+            <td><span class="fk-badge fk-badge--{{ entry.status.toLowerCase() }}">{{ entry.status }}</span></td>
+            <td class="fk-muted">{{ entry.origin }}</td>
+            <td class="fk-actions">
+              @if (entry.status === 'PENDENTE') {
+                <button class="fk-link" (click)="markAsPaid(entry)">Marcar pago</button>
+              }
+              <button class="fk-link fk-link--danger" (click)="remove(entry)">Excluir</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

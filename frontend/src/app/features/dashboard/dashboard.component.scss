@@ -1,0 +1,32 @@
+.fk-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 1.75rem;
+}
+
+.fk-summary-label {
+  display: block;
+  color: var(--fk-color-text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.fk-summary-value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.fk-card--warning {
+  border-color: var(--fk-color-warning);
+}
+
+.fk-card--error {
+  border-color: var(--fk-color-danger);
+  color: var(--fk-color-danger);
+}
+
+section.fk-card {
+  margin-bottom: 1.5rem;
+}

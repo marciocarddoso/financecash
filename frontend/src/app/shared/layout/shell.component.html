@@ -8,6 +8,12 @@
       <a routerLink="/contas" routerLinkActive="active">Contas &amp; Saldos</a>
       <a routerLink="/relatorios" routerLinkActive="active">Relatórios</a>
     </nav>
+    <div class="fc-sidebar__user">
+      @if (authService.currentUser(); as user) {
+        <span class="fc-sidebar__user-name">{{ user.name }}</span>
+      }
+      <button class="fc-sidebar__logout" (click)="logout()">Sair</button>
+    </div>
   </aside>
   <main class="fc-content">
     <ng-content></ng-content>

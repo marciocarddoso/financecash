@@ -1,0 +1,50 @@
+<div class="fc-auth-page">
+  <div class="fc-auth-card">
+    <h1>FinanceCash</h1>
+    <p class="fc-auth-subtitle">Seu controle financeiro pessoal.</p>
+
+    @if (error()) {
+      <div class="fc-auth-error">{{ error() }}</div>
+    }
+
+    @if (mode() === 'login') {
+      <form [formGroup]="loginForm" (ngSubmit)="submitLogin()">
+        <label>
+          E-mail
+          <input type="email" formControlName="email" autocomplete="username" />
+        </label>
+        <label>
+          Senha
+          <input type="password" formControlName="password" autocomplete="current-password" />
+        </label>
+        <button class="fc-button fc-auth-submit" type="submit" [disabled]="loginForm.invalid || loading()">
+          {{ loading() ? 'Entrando...' : 'Entrar' }}
+        </button>
+      </form>
+      <p class="fc-auth-switch">
+        Ainda não tem conta? <button type="button" (click)="toggleMode()">Cadastre-se</button>
+      </p>
+    } @else {
+      <form [formGroup]="registerForm" (ngSubmit)="submitRegister()">
+        <label>
+          Nome
+          <input type="text" formControlName="name" autocomplete="name" />
+        </label>
+        <label>
+          E-mail
+          <input type="email" formControlName="email" autocomplete="username" />
+        </label>
+        <label>
+          Senha (mínimo 8 caracteres)
+          <input type="password" formControlName="password" autocomplete="new-password" />
+        </label>
+        <button class="fc-button fc-auth-submit" type="submit" [disabled]="registerForm.invalid || loading()">
+          {{ loading() ? 'Criando conta...' : 'Criar conta' }}
+        </button>
+      </form>
+      <p class="fc-auth-switch">
+        Já tem conta? <button type="button" (click)="toggleMode()">Entrar</button>
+      </p>
+    }
+  </div>
+</div>

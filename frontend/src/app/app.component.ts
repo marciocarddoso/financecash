@@ -1,15 +1,22 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ShellComponent } from './shared/layout/shell.component';
+import { AuthService } from './core/services/auth.service';
 
 @Component({
   selector: 'fc-root',
   standalone: true,
   imports: [RouterOutlet, ShellComponent],
   template: `
-    <fc-shell>
+    @if (authService.isAuthenticated()) {
+      <fc-shell>
+        <router-outlet></router-outlet>
+      </fc-shell>
+    } @else {
       <router-outlet></router-outlet>
-    </fc-shell>
+    }
   `,
 })
-export class AppComponent {}
+export class AppComponent {
+  protected readonly authService = inject(AuthService);
+}

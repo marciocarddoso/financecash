@@ -1,0 +1,47 @@
+.fc-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.fc-hint {
+  color: var(--fc-color-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
+.fc-form {
+  margin-bottom: 1.5rem;
+
+  &__row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.85rem;
+      color: var(--fc-color-text-muted);
+      flex: 1;
+      min-width: 160px;
+
+      input, select {
+        padding: 0.45rem 0.6rem;
+        border: 1px solid var(--fc-color-border);
+        border-radius: 6px;
+        font-size: 0.95rem;
+      }
+    }
+  }
+}
+
+.fc-preview {
+  color: var(--fc-color-primary-dark);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: -0.5rem 0 1rem;
+}

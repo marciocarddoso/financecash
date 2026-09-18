@@ -1,0 +1,118 @@
+<div class="fc-header-row">
+  <h1>Recorrências</h1>
+  <div class="fc-header-actions">
+    <button class="fc-button fc-button--ghost" (click)="generate()" [disabled]="generating()">
+      {{ generating() ? 'Gerando...' : 'Gerar lançamentos futuros' }}
+    </button>
+    <button class="fc-button" (click)="toggleForm()">{{ showForm() ? 'Cancelar' : 'Nova recorrência' }}</button>
+  </div>
+</div>
+
+<p class="fc-hint">
+  Cadastre aqui salário, contas fixas/variáveis e o décimo terceiro (use frequência Anual com os meses de
+  novembro e dezembro). Sempre que houver reajuste, edite o valor futuramente — o histórico do valor anterior
+  fica preservado.
+</p>
+
+@if (generateMessage()) {
+  <div class="fc-card fc-generate-message">{{ generateMessage() }}</div>
+}
+
+@if (showForm()) {
+  <form class="fc-card fc-form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="fc-form__row">
+      <label>
+        Nome
+        <input type="text" formControlName="name" placeholder="Ex.: Salário, Aluguel, Décimo terceiro" />
+      </label>
+      <label>
+        Tipo
+        <select formControlName="type">
+          <option value="DESPESA">Despesa</option>
+          <option value="RECEITA">Receita</option>
+        </select>
+      </label>
+      <label>
+        Categoria
+        <select formControlName="categoryId">
+          <option value="" disabled>Selecione</option>
+          @for (category of categories(); track category.id) {
+            <option [value]="category.id">{{ category.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="fc-form__row">
+      <label>
+        Frequência
+        <select formControlName="frequency">
+          <option value="MENSAL">Mensal</option>
+          <option value="BIMESTRAL">Bimestral</option>
+          <option value="TRIMESTRAL">Trimestral</option>
+          <option value="SEMESTRAL">Semestral</option>
+          <option value="ANUAL">Anual</option>
+        </select>
+      </label>
+      <label>
+        Dia do vencimento
+        <input type="number" min="1" max="31" formControlName="dayOfMonth" />
+      </label>
+      <label>
+        Valor inicial
+        <input type="number" step="0.01" formControlName="initialAmount" />
+      </label>
+      <label>
+        A partir de
+        <input type="date" formControlName="startDate" />
+      </label>
+    </div>
+
+    @if (needsReferenceMonths) {
+      <div class="fc-form__row fc-form__months">
+        <span class="fc-form__months-label">Em quais meses ocorre:</span>
+        @for (month of months; track month.value) {
+          <label class="fc-month-chip">
+            <input
+              type="checkbox"
+              [checked]="isMonthSelected(month.value)"
+              (change)="toggleMonth(month.value, $any($event.target).checked)"
+            />
+            {{ month.label }}
+          </label>
+        }
+      </div>
+    }
+
+    <button class="fc-button" type="submit" [disabled]="form.invalid">Salvar</button>
+  </form>
+}
+
+<div class="fc-card">
+  @if (rules().length === 0) {
+    <p>Nenhuma recorrência cadastrada ainda.</p>
+  } @else {
+    <table class="fc-table">
+      <thead>
+        <tr><th>Nome</th><th>Categoria</th><th>Frequência</th><th>Dia</th><th>Valor atual</th><th></th></tr>
+      </thead>
+      <tbody>
+        @for (rule of rules(); track rule.id) {
+          <tr>
+            <td>{{ rule.name }}</td>
+            <td>{{ rule.categoryName }}</td>
+            <td>
+              {{ rule.frequency }}
+              @if (rule.referenceMonths.length > 0) {
+                <span class="fc-muted"> ({{ rule.referenceMonths.join(', ') }})</span>
+              }
+            </td>
+            <td>dia {{ rule.dayOfMonth }}</td>
+            <td>{{ rule.currentAmount | currency: 'BRL' }}</td>
+            <td><button class="fc-link fc-link--danger" (click)="deactivate(rule)">Desativar</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

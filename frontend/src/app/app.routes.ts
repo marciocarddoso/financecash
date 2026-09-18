@@ -18,6 +18,17 @@ export const routes: Routes = [
     loadComponent: () => import('./features/entries/entries-list.component').then((m) => m.EntriesListComponent),
   },
   {
+    path: 'recorrencias',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/recurring-rules/recurring-rules.component').then((m) => m.RecurringRulesComponent),
+  },
+  {
+    path: 'parcelamentos',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/installments/installments.component').then((m) => m.InstallmentsComponent),
+  },
+  {
     path: 'categorias',
     canActivate: [authGuard],
     loadComponent: () => import('./features/categories/categories.component').then((m) => m.CategoriesComponent),
@@ -26,6 +37,11 @@ export const routes: Routes = [
     path: 'contas',
     canActivate: [authGuard],
     loadComponent: () => import('./features/accounts/accounts.component').then((m) => m.AccountsComponent),
+  },
+  {
+    path: 'cartoes',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/credit-cards/credit-cards.component').then((m) => m.CreditCardsComponent),
   },
   {
     path: 'relatorios',

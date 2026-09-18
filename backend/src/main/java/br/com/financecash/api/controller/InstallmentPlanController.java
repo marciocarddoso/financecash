@@ -6,10 +6,9 @@ import br.com.financecash.application.service.InstallmentPlanService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/installment-plans")
@@ -19,6 +18,11 @@ public class InstallmentPlanController {
 
     public InstallmentPlanController(InstallmentPlanService installmentPlanService) {
         this.installmentPlanService = installmentPlanService;
+    }
+
+    @GetMapping
+    public List<InstallmentPlanDTO> list() {
+        return installmentPlanService.listForCurrentUser();
     }
 
     /** Cria a compra parcelada e já gera todos os lançamentos das parcelas futuras. */

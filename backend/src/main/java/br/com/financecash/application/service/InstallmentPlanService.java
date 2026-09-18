@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 /**
  * Ao criar um InstallmentPlan (compra parcelada), gera de uma vez todos os Entry
@@ -36,6 +37,13 @@ public class InstallmentPlanService {
         this.accountRepository = accountRepository;
         this.creditCardRepository = creditCardRepository;
         this.currentUserProvider = currentUserProvider;
+    }
+
+    @Transactional(readOnly = true)
+    public List<InstallmentPlanDTO> listForCurrentUser() {
+        AppUser user = currentUserProvider.getCurrentUser();
+        return installmentPlanRepository.findByOwnerIdOrderByFirstDueDateDesc(user.getId())
+                .stream().map(InstallmentPlanDTO::from).toList();
     }
 
     @Transactional

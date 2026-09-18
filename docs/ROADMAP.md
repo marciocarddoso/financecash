@@ -11,16 +11,18 @@ Ordenado por valor imediato para o uso pessoal primeiro; itens de "produto" (app
 - [x] CI básico (build + testes no GitHub Actions).
 
 ## Fase 1 — Uso diário real (substituir a planilha de vez)
-- [ ] Importar o histórico atual da planilha via CSV/Excel (endpoint de importação em lote, um `import job` por arquivo).
+- [x] Importar o histórico atual da planilha via CSV (`POST /api/entries/import-csv` + `scripts/import_numbers_to_csv.py` para extrair as abas Bradesco/Nubank/C6Bank da planilha Numbers).
 - [ ] Edição em lote de lançamentos (ex.: marcar vários como pagos de uma vez).
 - [ ] Tela de "fechamento do mês" comparando previsto vs. realizado.
 - [ ] Anexar comprovante/boleto (PDF/imagem) a um lançamento.
 - [ ] Filtros avançados nos relatórios (por conta, por cartão, por faixa de valor).
 
 ## Fase 2 — Automação de lançamento
-- [ ] **Boletos**: avaliar viabilidade de leitura automática via e-mail (parser de e-mails de bancos/empresas que emitem boleto em seu nome) e, como alternativa mais robusta, via Open Finance (Iniciação de Pagamento/Dados). Enquanto não sai do papel, lançamento manual continua sendo o caminho — a UI já foi pensada para isso ser rápido (atalhos, duplicar lançamento).
+- [x] **Boletos, passo 1**: leitura da linha digitável colada pelo usuário (`POST /api/boletos/parse-linha-digitavel`), pré-preenchendo o lançamento com banco/valor/vencimento — ver `docs/OPEN-FINANCE-E-BOLETOS.md`.
+- [ ] **Boletos, passo 2**: automação completa via Open Finance (ver `docs/OPEN-FINANCE-E-BOLETOS.md`, seção 1.2) — parser de e-mail foi avaliado e descartado (esforço/manutenção alto para o ganho, já coberto em boa parte pela leitura de linha digitável).
 - [ ] **Cartões de crédito por banco**: importação de fatura via OFX/CSV exportado do banco como primeiro passo (não depende de integração aprovada); Open Finance como evolução.
 - [ ] **PIX**: mesmo tratamento — OFX/CSV do extrato como primeiro passo, Open Finance depois.
+- [ ] **Open Finance**: integração via agregador (Pluggy, tier "Meu Pluggy" gratuito para uso pessoal) em vez de virar participante direto — decisão e desenho detalhados em `docs/OPEN-FINANCE-E-BOLETOS.md`, seção 2. Ainda não implementado.
 - [ ] Conciliação: ao importar, o sistema sugere match com lançamentos manuais já existentes (evitar duplicidade).
 
 ## Fase 3 — Alertas e automação de rotina
@@ -44,3 +46,5 @@ Ordenado por valor imediato para o uso pessoal primeiro; itens de "produto" (app
 ## Notas de arquitetura para as fases futuras
 
 O modelo de `Entry.origin` (`MANUAL`, `RECORRENCIA`, `PARCELAMENTO`, `IMPORTADO_BOLETO`, `IMPORTADO_CARTAO`) e o desenho em camadas (domain/application/api) já foram pensados para que a Fase 2 (importadores) entre como novos `services` que produzem `Entry`, sem precisar alterar o modelo de dados ou os controllers existentes — só endpoints novos. Isso evita retrabalho grande quando essas integrações forem priorizadas.
+
+A aba "Valores Acumulados" da planilha original **não** tem um importador dedicado: ela é um resumo mensal derivado (saldo, salário, totais por banco), não uma lista de lançamentos — o Dashboard/Relatórios do FinanceCash recalculam esses números automaticamente a partir dos lançamentos importados (Bradesco/Nubank/C6Bank) somados a uma `RecurringRule` de salário, uma vez cadastrada.

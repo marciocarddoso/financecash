@@ -24,8 +24,8 @@ Ordenado por valor imediato para o uso pessoal primeiro; itens de "produto" (app
 - [ ] Conciliação: ao importar, o sistema sugere match com lançamentos manuais já existentes (evitar duplicidade).
 
 ## Fase 3 — Alertas e automação de rotina
-- [ ] Job agendado (`@Scheduled` ou worker separado) que roda diariamente:
-  - Gera os próximos lançamentos recorrentes automaticamente (hoje é sob demanda).
+- [x] Job agendado (`@Scheduled`) que roda diariamente — `RecurringEntryScheduler`:
+  - [x] Gera os próximos lançamentos recorrentes automaticamente para todos os usuários ativos (antes só sob demanda).
   - Verifica contas vencendo nas próximas 24-48h e dispara notificação.
   - Verifica projeção de saldo negativo no mês e alerta.
 - [ ] Canal de notificação: e-mail primeiro (mais simples, SMTP/SES), push depois (junto com o app mobile).

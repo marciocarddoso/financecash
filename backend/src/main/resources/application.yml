@@ -25,6 +25,11 @@ financecash:
   jwt:
     secret: ${JWT_SECRET:troque-esta-chave-em-producao-para-algo-com-pelo-menos-256-bits}
     expiration-minutes: 720
+  recurring-generation:
+    # Roda todo dia às 05:00 (horário do servidor) — ver RecurringEntryScheduler.
+    cron: "0 0 5 * * *"
+    # Quantos meses à frente projetar os lançamentos recorrentes a cada execução.
+    months-ahead: 12
 
 springdoc:
   swagger-ui:

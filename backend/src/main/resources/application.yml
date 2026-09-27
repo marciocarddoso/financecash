@@ -50,6 +50,13 @@ financecash:
     # Remetente usado nos e-mails de alerta. Sem MAIL_HOST configurado, o envio
     # simplesmente falha e é logado — não derruba o job (ver SmtpEmailSender).
     email-from: ${MAIL_FROM:no-reply@financecash.local}
+  pluggy:
+    # Integração com Open Finance via Pluggy (ver docs/OPEN-FINANCE-E-BOLETOS.md).
+    # Client ID/Secret vêm de meu.pluggy.ai + dashboard.pluggy.ai — nunca vão para o
+    # repositório, só para variáveis de ambiente do backend.
+    base-url: ${PLUGGY_BASE_URL:https://api.pluggy.ai}
+    client-id: ${PLUGGY_CLIENT_ID:}
+    client-secret: ${PLUGGY_CLIENT_SECRET:}
 
 springdoc:
   swagger-ui:

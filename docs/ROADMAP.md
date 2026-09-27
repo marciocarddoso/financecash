@@ -22,7 +22,7 @@ Ordenado por valor imediato para o uso pessoal primeiro; itens de "produto" (app
 - [ ] **Boletos, passo 2**: automação completa via Open Finance (ver `docs/OPEN-FINANCE-E-BOLETOS.md`, seção 1.2) — parser de e-mail foi avaliado e descartado (esforço/manutenção alto para o ganho, já coberto em boa parte pela leitura de linha digitável).
 - [ ] **Cartões de crédito por banco**: importação de fatura via OFX/CSV exportado do banco como primeiro passo (não depende de integração aprovada); Open Finance como evolução.
 - [ ] **PIX**: mesmo tratamento — OFX/CSV do extrato como primeiro passo, Open Finance depois.
-- [ ] **Open Finance**: integração via agregador (Pluggy, tier "Meu Pluggy" gratuito para uso pessoal) em vez de virar participante direto — decisão e desenho detalhados em `docs/OPEN-FINANCE-E-BOLETOS.md`, seção 2. Ainda não implementado (próxima frente depois desta leva de features).
+- [ ] **Open Finance**: integração via agregador (Pluggy, tier "Meu Pluggy" gratuito para uso pessoal) em vez de virar participante direto — decisão e desenho detalhados em `docs/OPEN-FINANCE-E-BOLETOS.md`, seção 2. Em andamento: contas conectadas no Meu Pluggy e `PluggyClient`/`POST /api/openfinance/connect-token` implementados (autenticação + Connect Token); faltam o widget Pluggy Connect no frontend, listar contas/transações e importar como `Entry`.
 - [ ] Conciliação: ao importar, o sistema sugere match com lançamentos manuais já existentes (evitar duplicidade).
 
 ## Fase 3 — Alertas e automação de rotina

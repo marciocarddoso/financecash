@@ -1,0 +1,128 @@
+package br.com.financecash.openfinance;
+
+import br.com.financecash.exception.BusinessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+
+/**
+ * Wrapper HTTP fino sobre a API REST da Pluggy (agregador de Open Finance) — ver
+ * docs/OPEN-FINANCE-E-BOLETOS.md, seção 2, para o raciocínio por trás de usar um
+ * agregador em vez de virar participante direto do Open Finance.
+ *
+ * Deliberadamente não usa o SDK oficial da Pluggy para Java (github.com/pluggyai/pluggy-java):
+ * ele é publicado via GitHub Packages, o que exigiria configurar autenticação extra no
+ * Maven só para resolver a dependência (mesmo sendo um pacote público). Como a API tem só
+ * 4 endpoints relevantes para o FinanceCash hoje, um client próprio é mais simples de manter
+ * e evita essa dependência extra.
+ *
+ * clientId/clientSecret nunca saem do backend — vêm de variáveis de ambiente
+ * (PLUGGY_CLIENT_ID / PLUGGY_CLIENT_SECRET, ver application.yml). O apiKey obtido em troca
+ * deles vale 2h e é cacheado em memória, renovado automaticamente quando expira.
+ */
+@Component
+public class PluggyClient {
+
+    private static final Logger log = LoggerFactory.getLogger(PluggyClient.class);
+    private static final Duration API_KEY_TTL = Duration.ofHours(2);
+    private static final Duration API_KEY_SAFETY_MARGIN = Duration.ofMinutes(5);
+
+    private final RestTemplate restTemplate;
+    private final String baseUrl;
+    private final String clientId;
+    private final String clientSecret;
+
+    private volatile String cachedApiKey;
+    private volatile Instant apiKeyExpiresAt = Instant.EPOCH;
+
+    public PluggyClient(
+            RestTemplateBuilder restTemplateBuilder,
+            @Value("${financecash.pluggy.base-url:https://api.pluggy.ai}") String baseUrl,
+            @Value("${financecash.pluggy.client-id:}") String clientId,
+            @Value("${financecash.pluggy.client-secret:}") String clientSecret) {
+        this.restTemplate = restTemplateBuilder.build();
+        this.baseUrl = baseUrl;
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
+    }
+
+    /**
+     * Cria um Connect Token de curta duração (30 min) que o frontend usa para abrir o
+     * widget "Pluggy Connect" com segurança, sem nunca ver o clientId/clientSecret.
+     *
+     * @param clientUserId identificador do usuário do FinanceCash (opcional para a
+     *                      Pluggy, mas útil para rastrear qual conexão pertence a quem
+     *                      caso o sistema um dia tenha mais de um usuário).
+     */
+    public String createConnectToken(String clientUserId) {
+        String apiKey = getApiKey();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-API-KEY", apiKey);
+
+        Map<String, Object> body = (clientUserId == null || clientUserId.isBlank())
+                ? Map.of()
+                : Map.of("clientUserId", clientUserId);
+
+        try {
+            ConnectTokenApiResponse response = restTemplate.postForObject(
+                    baseUrl + "/connect_token", new HttpEntity<>(body, headers), ConnectTokenApiResponse.class);
+            if (response == null || response.accessToken() == null || response.accessToken().isBlank()) {
+                throw new BusinessException("A Pluggy não retornou um accessToken válido para o Connect Token.");
+            }
+            return response.accessToken();
+        } catch (RestClientException ex) {
+            log.error("Falha ao criar Connect Token na Pluggy: {}", ex.getMessage(), ex);
+            throw new BusinessException("Não foi possível criar o Connect Token da Pluggy. Tente novamente em instantes.");
+        }
+    }
+
+    /** Retorna o apiKey em cache, renovando via POST /auth se estiver ausente/expirado. */
+    private synchronized String getApiKey() {
+        if (clientId.isBlank() || clientSecret.isBlank()) {
+            throw new BusinessException(
+                    "Integração com a Pluggy não configurada. Defina PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET "
+                            + "nas variáveis de ambiente do backend (ver docs/OPEN-FINANCE-E-BOLETOS.md).");
+        }
+        if (cachedApiKey != null && Instant.now().isBefore(apiKeyExpiresAt.minus(API_KEY_SAFETY_MARGIN))) {
+            return cachedApiKey;
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map<String, String> body = Map.of("clientId", clientId, "clientSecret", clientSecret);
+
+        try {
+            AuthApiResponse response = restTemplate.postForObject(
+                    baseUrl + "/auth", new HttpEntity<>(body, headers), AuthApiResponse.class);
+            if (response == null || response.apiKey() == null || response.apiKey().isBlank()) {
+                throw new BusinessException("A Pluggy não retornou um apiKey válido na autenticação.");
+            }
+            cachedApiKey = response.apiKey();
+            apiKeyExpiresAt = Instant.now().plus(API_KEY_TTL);
+            log.info("Novo apiKey da Pluggy obtido, válido até {}.", apiKeyExpiresAt);
+            return cachedApiKey;
+        } catch (RestClientException ex) {
+            log.error("Falha ao autenticar na Pluggy: {}", ex.getMessage(), ex);
+            throw new BusinessException("Não foi possível autenticar na Pluggy. Verifique as credenciais configuradas.");
+        }
+    }
+
+    private record AuthApiResponse(String apiKey) {
+    }
+
+    private record ConnectTokenApiResponse(String accessToken) {
+    }
+}

@@ -128,19 +128,40 @@ Nenhuma dessas classes muda o modelo de domínio existente (`Entry.origin` já
 foi pensado para isso — ver `docs/MODELO-DOMINIO.md`); é só uma nova origem de
 dado alimentando a mesma tabela `entry`.
 
-### 2.4 Próximos passos concretos (quando essa frente for priorizada)
+### 2.4 Próximos passos concretos
 
-1. Criar conta em meu.pluggy.ai com o CPF do Marcio e conectar Bradesco, Nubank
-   e C6 Bank (os três bancos que ele usa ativamente hoje).
-2. Criar credenciais (Client ID/Secret) em dashboard.pluggy.ai — **essas
-   credenciais vão para variáveis de ambiente do backend, nunca para o
-   repositório**, seguindo o mesmo cuidado que já tomamos com o token do
-   GitHub.
-3. Implementar `PluggyClient` cobrindo os 3 endpoints mínimos: criar
-   connect token, listar contas de um `item`, listar transações de uma conta.
-4. Prototipar contra uma conta sandbox da Pluggy antes de conectar dados reais
-   (a Pluggy oferece bancos de teste para isso).
-5. Só depois disso conectar as contas reais do Marcio.
+1. [x] Criar conta em meu.pluggy.ai com o CPF do Marcio e conectar os bancos
+   (Bradesco, Nubank, C6 Bank e mais um quarto banco — 4 conexões ativas,
+   dentro do limite de 5 do tier gratuito).
+2. [x] Criar aplicação e credenciais (Client ID/Secret) em dashboard.pluggy.ai
+   — **essas credenciais vão para variáveis de ambiente do backend
+   (`PLUGGY_CLIENT_ID`/`PLUGGY_CLIENT_SECRET`), nunca para o repositório**,
+   seguindo o mesmo cuidado que já tomamos com o token do GitHub. Conector
+   "MeuPluggy" ativado no Dashboard (agrega as contas já conectadas em
+   meu.pluggy.ai — não usar o conector do banco específico).
+3. [x] Implementar `PluggyClient` (`backend/.../openfinance/PluggyClient.java`)
+   cobrindo autenticação (`POST /auth`, apiKey cacheado por 2h) e criação de
+   Connect Token (`POST /connect_token`) — exposto em
+   `POST /api/openfinance/connect-token`. Optou-se por não usar o SDK oficial
+   Java da Pluggy (`github.com/pluggyai/pluggy-java`) porque ele é publicado via
+   GitHub Packages, o que exigiria autenticação extra no Maven só para resolver
+   a dependência — um client HTTP próprio (`RestTemplate`) é mais simples para
+   as poucas chamadas que o FinanceCash precisa.
+4. [ ] Integrar o widget **Pluggy Connect** no frontend Angular: uma tela
+   "Conectar Banco" chama `POST /api/openfinance/connect-token`, abre o widget
+   com o `accessToken` recebido, e o usuário autoriza a conexão de um banco
+   pela interface hospedada pela própria Pluggy.
+5. [ ] Implementar `listAccounts(itemId)` e `listTransactions(accountId)` no
+   `PluggyClient` (endpoints `GET /accounts` e `GET /transactions`) — os
+   nomes de campo exatos da resposta serão confirmados contra a API real (ou
+   sandbox) antes de mapear os DTOs, para não arriscar um mapeamento
+   silenciosamente errado.
+6. [ ] `BankConnection` (nova entidade): guarda o `itemId` por `AppUser` +
+   banco, status da conexão e data da última sincronização.
+7. [ ] `AccountSyncService` e `TransactionImportService` (ver seção 2.3) —
+   sincronização periódica de saldo e importação de transações como `Entry`.
+8. [ ] Prototipar contra uma conta sandbox da Pluggy antes de expandir para
+   todas as contas reais conectadas.
 
 ## 3. Resumo da decisão para as duas frentes
 

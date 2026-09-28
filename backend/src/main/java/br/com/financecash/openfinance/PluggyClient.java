@@ -16,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -130,9 +131,10 @@ public class PluggyClient {
      * Lista as contas (corrente, poupança, cartão) de um Item já conectado. Não é
      * persistida no FinanceCash — é consultada ao vivo sempre que a tela "Bancos
      * Conectados" pede o detalhe de uma conexão. A importação de contas (tipo BANK) como
-     * Account/BalanceSnapshot é feita pelo AccountSyncService, que chama este método na
-     * hora de sincronizar; cartões de crédito (tipo CREDIT) ainda não são sincronizados
-     * (falta extrair dados de fatura da Pluggy) — ver TransactionImportService, próxima fase.
+     * Account/BalanceSnapshot, e de cartões (tipo CREDIT, usando creditData.balanceCloseDate/
+     * balanceDueDate) como CreditCard, é feita pelo AccountSyncService, que chama este método
+     * na hora de sincronizar; importar transações como Entry ainda não foi feito — ver
+     * TransactionImportService, próxima fase.
      */
     public List<AccountInfo> listAccounts(String itemId) {
         String apiKey = getApiKey();
@@ -151,12 +153,20 @@ public class PluggyClient {
             }
             return response.results().stream()
                     .map(a -> new AccountInfo(a.id(), a.type(), a.subtype(), a.number(), a.name(), a.marketingName(),
-                            a.balance(), a.currencyCode()))
+                            a.balance(), a.currencyCode(), toCreditDataInfo(a.creditData())))
                     .toList();
         } catch (RestClientException ex) {
             log.error("Falha ao listar contas do item {} na Pluggy: {}", itemId, ex.getMessage(), ex);
             throw new BusinessException("Não foi possível consultar as contas dessa conexão na Pluggy. Tente novamente em instantes.");
         }
+    }
+
+    private CreditDataInfo toCreditDataInfo(PluggyCreditDataApiResponse creditData) {
+        if (creditData == null) {
+            return null;
+        }
+        return new CreditDataInfo(creditData.brand(), creditData.balanceCloseDate(), creditData.balanceDueDate(),
+                creditData.creditLimit(), creditData.availableCreditLimit());
     }
 
     /** Retorna o apiKey em cache, renovando via POST /auth se estiver ausente/expirado. */
@@ -206,10 +216,20 @@ public class PluggyClient {
     private record ConnectorApiResponse(String name) {
     }
 
-    /** Conta trazida ao vivo da Pluggy — ver listAccounts. */
+    /** Conta trazida ao vivo da Pluggy — ver listAccounts. creditData só vem preenchido para type=CREDIT. */
     public record AccountInfo(
             String id, String type, String subtype, String number, String name,
-            String marketingName, BigDecimal balance, String currencyCode) {
+            String marketingName, BigDecimal balance, String currencyCode, CreditDataInfo creditData) {
+    }
+
+    /**
+     * Dados de fatura de um cartão de crédito (type=CREDIT) — usado pelo AccountSyncService
+     * pra sincronizar CreditCard.closingDay/dueDay a partir de balanceCloseDate/balanceDueDate
+     * (dia do mês extraído da data da fatura atual). Campos confirmados em docs.pluggy.ai/docs/accounts.
+     */
+    public record CreditDataInfo(
+            String brand, LocalDate balanceCloseDate, LocalDate balanceDueDate,
+            BigDecimal creditLimit, BigDecimal availableCreditLimit) {
     }
 
     private record PluggyAccountsApiResponse(List<PluggyAccountApiResponse> results) {
@@ -217,6 +237,11 @@ public class PluggyClient {
 
     private record PluggyAccountApiResponse(
             String id, String type, String subtype, String number, String name,
-            String marketingName, BigDecimal balance, String currencyCode) {
+            String marketingName, BigDecimal balance, String currencyCode, PluggyCreditDataApiResponse creditData) {
+    }
+
+    private record PluggyCreditDataApiResponse(
+            String brand, LocalDate balanceCloseDate, LocalDate balanceDueDate,
+            BigDecimal creditLimit, BigDecimal availableCreditLimit) {
     }
 }

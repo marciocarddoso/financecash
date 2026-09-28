@@ -184,16 +184,39 @@ dado alimentando a mesma tabela `entry`.
 7. [x] `AccountSyncService` implementado
    (`backend/.../application/service/AccountSyncService.java`, exposto em
    `POST /api/openfinance/connections/{id}/sync`, botão "Sincronizar" na tela
-   Bancos Conectados) — mas só para contas tipo `BANK` (corrente/poupança):
+   Bancos Conectados) — sincroniza contas tipo `BANK` (corrente/poupança):
    casa por (nome do banco, tipo) já cadastrado em `Account` e substitui o
    `BalanceSnapshot` do dia em vez de duplicar; se não existir, cria a
    `Account`. Atualiza `lastSyncAt` em `BankConnection` a cada sincronização.
-   Cartões de crédito (`CREDIT`) ainda **não** são sincronizados — os dados
-   reais mostram que a Pluggy não traz o nome do banco nesses casos, e
-   sincronizar num `CreditCard` exigiria também `closingDay`/`dueDay`, que
-   `listAccounts` não retorna (precisa investigar o campo `creditData` da API
-   antes de tentar). `TransactionImportService` (importar `Entry` a partir de
-   transações) também ainda não foi implementado — depende de
+   Cartões de crédito (`CREDIT`) **também já sincronizam**: o campo
+   `creditData` do endpoint `/accounts` (confirmado em
+   docs.pluggy.ai/docs/accounts — `balanceCloseDate`/`balanceDueDate`,
+   `brand`, `creditLimit`, `availableCreditLimit`) dá o dia de
+   fechamento/vencimento (extraído da data da fatura atual) e a bandeira do
+   cartão. Como o nome/marketingName de uma conta `CREDIT` não identifica o
+   banco de forma confiável (ex.: "OUTROS", "BANDEIRADO"), o nome do banco é
+   descoberto a partir de uma conta `BANK` da mesma conexão (cada
+   `BankConnection`/item representa um único banco real) e usado pra casar
+   com `CreditCard.bankName` — se não existir nenhuma conta `BANK` na mesma
+   conexão, ou faltar `creditData`, o cartão fica marcado como "não
+   sincronizado" (`creditCardsSkipped` no retorno do endpoint) em vez de
+   arriscar um cadastro errado.
+
+   **Achado em produção, com dados reais**: `creditData.balanceCloseDate`
+   veio `null` nos 3 cartões reais testados (Bradesco, C6, Nubank via
+   MeuPluggy), mesmo com `balanceDueDate` preenchido — não é bug de parsing
+   (o mesmo tipo de campo funcionou pro vencimento), a Pluggy simplesmente
+   não manda esse dado nesse conector/tier. Pra não travar a sincronização
+   por causa disso: ao atualizar um cartão já cadastrado, só mexe em
+   `dueDay` (o `closingDay` que já está lá fica intacto); ao criar um cartão
+   novo sem essa data, estima o fechamento como 10 dias antes do vencimento
+   (convenção comum, mas é só uma estimativa) e sinaliza isso no retorno do
+   endpoint (`creditCardsWithEstimatedClosingDay`) pra tela avisar o
+   usuário. Por causa disso, também foi adicionada edição de `CreditCard`
+   (nome, banco, dia de fechamento/vencimento — `PUT /api/credit-cards/{id}`,
+   botão "Editar" em Cartões), pra corrigir a estimativa com o dado real
+   quando o usuário souber. `TransactionImportService` (importar `Entry` a
+   partir de transações) ainda não foi implementado — depende de
    `listTransactions`.
 8. [ ] Prototipar contra uma conta sandbox da Pluggy antes de expandir para
    todas as contas reais conectadas — ficou menos crítico depois do item 6/7

@@ -20,8 +20,8 @@ import java.util.UUID;
 /**
  * Persiste e lista as conexões bancárias feitas pelo usuário via widget "Pluggy
  * Connect" — ver docs/OPEN-FINANCE-E-BOLETOS.md, seção 2.3. A sincronização de
- * saldo (contas tipo BANK) é feita pelo AccountSyncService; a de transações
- * (TransactionImportService) e de cartões de crédito ainda ficam pra próxima fase.
+ * saldo (contas tipo BANK) e de cartões (tipo CREDIT) é feita pelo AccountSyncService;
+ * a de transações (TransactionImportService) ainda fica pra próxima fase.
  */
 @Service
 public class BankConnectionService {

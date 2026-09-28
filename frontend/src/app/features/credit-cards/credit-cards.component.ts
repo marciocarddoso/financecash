@@ -25,14 +25,29 @@ import { CreditCard } from '../../core/models/credit-card.model';
         <p>Nenhum cartão cadastrado ainda.</p>
       } @else {
         <table class="fc-table">
-          <thead><tr><th>Nome</th><th>Banco</th><th>Fechamento</th><th>Vencimento</th></tr></thead>
+          <thead><tr><th>Nome</th><th>Banco</th><th>Fechamento</th><th>Vencimento</th><th></th></tr></thead>
           <tbody>
             @for (card of cards(); track card.id) {
               <tr>
-                <td>{{ card.name }}</td>
-                <td>{{ card.bankName }}</td>
-                <td>dia {{ card.closingDay }}</td>
-                <td>dia {{ card.dueDay }}</td>
+                @if (editingId() === card.id) {
+                  <td><input type="text" [formControl]="editForm.controls.name" /></td>
+                  <td><input type="text" [formControl]="editForm.controls.bankName" /></td>
+                  <td><input type="number" min="1" max="31" [formControl]="editForm.controls.closingDay" /></td>
+                  <td><input type="number" min="1" max="31" [formControl]="editForm.controls.dueDay" /></td>
+                  <td>
+                    <button class="fc-link" [disabled]="editForm.invalid" (click)="saveEdit(card)">Salvar</button>
+                    <button class="fc-link" (click)="cancelEdit()">Cancelar</button>
+                  </td>
+                } @else {
+                  <td>{{ card.name }}</td>
+                  <td>{{ card.bankName }}</td>
+                  <td>dia {{ card.closingDay }}</td>
+                  <td>dia {{ card.dueDay }}</td>
+                  <td>
+                    <button class="fc-link" (click)="startEdit(card)">Editar</button>
+                    <button class="fc-link fc-link--danger" (click)="remove(card)">Remover</button>
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -46,6 +61,8 @@ import { CreditCard } from '../../core/models/credit-card.model';
     .fc-inline-form input[type="text"] { flex: 1; min-width: 160px; padding: 0.45rem 0.6rem; border: 1px solid var(--fc-color-border); border-radius: 6px; }
     .fc-inline-form label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--fc-color-text-muted); }
     .fc-inline-form input[type="number"] { width: 60px; padding: 0.45rem 0.5rem; border: 1px solid var(--fc-color-border); border-radius: 6px; }
+    .fc-link { background: none; border: none; color: var(--fc-color-primary); cursor: pointer; }
+    .fc-link--danger { color: var(--fc-color-danger); }
   `],
 })
 export class CreditCardsComponent implements OnInit {
@@ -55,6 +72,15 @@ export class CreditCardsComponent implements OnInit {
   readonly cards = signal<CreditCard[]>([]);
 
   readonly form = this.fb.nonNullable.group({
+    name: ['', Validators.required],
+    bankName: ['', Validators.required],
+    closingDay: [1, [Validators.required, Validators.min(1), Validators.max(31)]],
+    dueDay: [10, [Validators.required, Validators.min(1), Validators.max(31)]],
+  });
+
+  readonly editingId = signal<string | null>(null);
+
+  readonly editForm = this.fb.nonNullable.group({
     name: ['', Validators.required],
     bankName: ['', Validators.required],
     closingDay: [1, [Validators.required, Validators.min(1), Validators.max(31)]],
@@ -75,5 +101,28 @@ export class CreditCardsComponent implements OnInit {
       this.form.reset({ name: '', bankName: '', closingDay: 1, dueDay: 10 });
       this.reload();
     });
+  }
+
+  startEdit(card: CreditCard): void {
+    this.editingId.set(card.id);
+    this.editForm.setValue({ name: card.name, bankName: card.bankName, closingDay: card.closingDay, dueDay: card.dueDay });
+  }
+
+  cancelEdit(): void {
+    this.editingId.set(null);
+  }
+
+  /** Usado, por exemplo, pra corrigir o dia de fechamento quando o AccountSyncService estimou (a Pluggy nem sempre informa esse dado). */
+  saveEdit(card: CreditCard): void {
+    if (this.editForm.invalid) return;
+    this.creditCardService.update(card.id, this.editForm.getRawValue()).subscribe(() => {
+      this.editingId.set(null);
+      this.reload();
+    });
+  }
+
+  /** Desativa (soft delete) o cartão — ex.: um cadastro manual que ficou obsoleto depois de sincronizar via Open Finance. */
+  remove(card: CreditCard): void {
+    this.creditCardService.deactivate(card.id).subscribe(() => this.reload());
   }
 }

@@ -13,3 +13,10 @@ export interface CreditCardCreateRequest {
   closingDay: number;
   dueDay: number;
 }
+
+export interface CreditCardUpdateRequest {
+  name: string;
+  bankName: string;
+  closingDay: number;
+  dueDay: number;
+}

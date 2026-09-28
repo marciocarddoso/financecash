@@ -71,7 +71,7 @@ public class OpenFinanceController {
         return ResponseEntity.status(HttpStatus.CREATED).body(bankConnectionService.save(request));
     }
 
-    /** Traz as contas (tipo BANK) da Pluggy pra dentro do FinanceCash — ver AccountSyncService. */
+    /** Traz contas (tipo BANK) e cartões (tipo CREDIT) da Pluggy pra dentro do FinanceCash — ver AccountSyncService. */
     @PostMapping("/connections/{id}/sync")
     public SyncResultDTO syncConnection(@PathVariable UUID id) {
         return accountSyncService.syncConnection(id);

@@ -30,5 +30,8 @@ export interface BankAccountInfo {
 export interface SyncResult {
   accountsCreated: number;
   accountsUpdated: number;
+  creditCardsCreated: number;
+  creditCardsUpdated: number;
   creditCardsSkipped: number;
+  creditCardsWithEstimatedClosingDay: number;
 }

@@ -79,6 +79,39 @@ class PluggyClientTest {
     }
 
     @Test
+    void deveBuscarDetalhesDoItem() {
+        PluggyClient client = clientWith("meu-client-id", "meu-client-secret");
+
+        mockServer.expect(requestTo(BASE_URL + "/auth"))
+                .andRespond(withSuccess("{\"apiKey\":\"api-key-123\"}", MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo(BASE_URL + "/items/item-1"))
+                .andExpect(header("X-API-KEY", "api-key-123"))
+                .andRespond(withSuccess(
+                        "{\"id\":\"item-1\",\"connector\":{\"name\":\"Nubank\"},\"status\":\"UPDATED\"}",
+                        MediaType.APPLICATION_JSON));
+
+        PluggyClient.ItemInfo itemInfo = client.getItem("item-1");
+
+        assertThat(itemInfo.itemId()).isEqualTo("item-1");
+        assertThat(itemInfo.bankName()).isEqualTo("Nubank");
+        assertThat(itemInfo.status()).isEqualTo("UPDATED");
+        mockServer.verify();
+    }
+
+    @Test
+    void deveLancarBusinessExceptionQuandoItemNaoEncontrado() {
+        PluggyClient client = clientWith("meu-client-id", "meu-client-secret");
+
+        mockServer.expect(requestTo(BASE_URL + "/auth"))
+                .andRespond(withSuccess("{\"apiKey\":\"api-key-123\"}", MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo(BASE_URL + "/items/item-inexistente"))
+                .andRespond(withServerError());
+
+        assertThatThrownBy(() -> client.getItem("item-inexistente"))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
     void deveLancarBusinessExceptionQuandoCredenciaisNaoConfiguradas() {
         PluggyClient client = clientWith("", "");
 

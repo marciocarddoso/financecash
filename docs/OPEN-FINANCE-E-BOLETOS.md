@@ -96,7 +96,7 @@ conexão — o FinanceCash nunca fala diretamente com o Open Finance do Banco
 Central, fala com a API da Pluggy, que por sua vez fala com os bancos via Open
 Finance.
 
-### 2.3 Desenho proposto (ainda não implementado)
+### 2.3 Desenho proposto (parcialmente implementado — ver progresso na seção 2.4)
 
 ```
 Banco (via Open Finance) <-> Pluggy (agregador/ITP) <-> FinanceCash backend <-> FinanceCash frontend
@@ -147,19 +147,41 @@ dado alimentando a mesma tabela `entry`.
    GitHub Packages, o que exigiria autenticação extra no Maven só para resolver
    a dependência — um client HTTP próprio (`RestTemplate`) é mais simples para
    as poucas chamadas que o FinanceCash precisa.
-4. [ ] Integrar o widget **Pluggy Connect** no frontend Angular: uma tela
-   "Conectar Banco" chama `POST /api/openfinance/connect-token`, abre o widget
-   com o `accessToken` recebido, e o usuário autoriza a conexão de um banco
-   pela interface hospedada pela própria Pluggy.
-5. [ ] Implementar `listAccounts(itemId)` e `listTransactions(accountId)` no
+4. [x] `BankConnection` (nova entidade, `backend/.../domain/model/BankConnection.java`,
+   migração `V3__bank_connection.sql`): guarda `itemId`, `bankName`, `status`
+   (`ATIVA`/`EXPIRADA`/`ERRO`) e `connectedAt`/`lastSyncAt` por `AppUser`.
+   Expostos `POST /api/openfinance/connections` (salva uma conexão a partir de
+   um `itemId`) e `GET /api/openfinance/connections` (lista as conexões do
+   usuário). Ao salvar, o backend chama `PluggyClient.getItem(itemId)` — não
+   confia no que o widget manda além do `itemId` — para buscar o nome do banco
+   (`connector.name`) e o status reais na Pluggy; o status granular da Pluggy
+   (`UPDATED`, `OUTDATED`, `WAITING_USER_ACTION`, etc. — confirmado via
+   `docs.pluggy.ai/docs/connect-an-account`) é simplificado para os três
+   estados acima porque o usuário só precisa saber "está funcionando",
+   "precisa reconectar" ou "tem algo errado".
+5. [x] Integrar o widget **Pluggy Connect** no frontend Angular
+   (`frontend/.../features/open-finance/open-finance.component.ts`, rota
+   `/bancos-conectados`, link "Bancos Conectados" no menu): a tela chama
+   `POST /api/openfinance/connect-token`, abre o widget com o `accessToken`
+   recebido via `pluggy-connect-sdk` (pacote npm), e no `onSuccess` manda o
+   `item.id` para `POST /api/openfinance/connections`.
+   **Detalhe que só se confirma checando o pacote instalado, não a doc**: o
+   README do `pluggy-connect-sdk` mostra `import PluggyConnect from
+   'pluggy-connect-sdk'` (default export), mas os *types* realmente publicados
+   na versão 2.14.2 (`dist/main/index.d.ts`) só reexportam `PluggyConnect` como
+   *named export* — o import correto é `import { PluggyConnect } from
+   'pluggy-connect-sdk'`. Confirmado compilando um arquivo de teste isolado
+   antes de usar no componente; com o import default o TypeScript falha com
+   "This expression is not constructable."
+6. [ ] Implementar `listAccounts(itemId)` e `listTransactions(accountId)` no
    `PluggyClient` (endpoints `GET /accounts` e `GET /transactions`) — os
    nomes de campo exatos da resposta serão confirmados contra a API real (ou
    sandbox) antes de mapear os DTOs, para não arriscar um mapeamento
    silenciosamente errado.
-6. [ ] `BankConnection` (nova entidade): guarda o `itemId` por `AppUser` +
-   banco, status da conexão e data da última sincronização.
 7. [ ] `AccountSyncService` e `TransactionImportService` (ver seção 2.3) —
    sincronização periódica de saldo e importação de transações como `Entry`.
+   `AccountSyncService` também é o lugar natural para atualizar `lastSyncAt`
+   em `BankConnection` a cada rodada.
 8. [ ] Prototipar contra uma conta sandbox da Pluggy antes de expandir para
    todas as contas reais conectadas.
 

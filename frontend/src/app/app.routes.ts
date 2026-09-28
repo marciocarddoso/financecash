@@ -54,6 +54,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/credit-cards/credit-cards.component').then((m) => m.CreditCardsComponent),
   },
   {
+    path: 'bancos-conectados',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/open-finance/open-finance.component').then((m) => m.OpenFinanceComponent),
+  },
+  {
     path: 'relatorios',
     canActivate: [authGuard],
     loadComponent: () => import('./features/reports/reports.component').then((m) => m.ReportsComponent),

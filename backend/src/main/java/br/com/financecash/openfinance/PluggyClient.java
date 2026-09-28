@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -89,6 +90,40 @@ public class PluggyClient {
         }
     }
 
+    /**
+     * Busca os detalhes de um Item (uma conexão bancária) já autorizado pelo usuário no
+     * widget "Pluggy Connect". Usado ao persistir uma BankConnection, para descobrir o nome
+     * do banco (connector.name) e o status atual da conexão sem depender do payload do
+     * onSuccess do widget, que só garante o campo item.id.
+     *
+     * @param itemId identificador do Item devolvido pelo widget no callback onSuccess.
+     */
+    public ItemInfo getItem(String itemId) {
+        String apiKey = getApiKey();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-API-KEY", apiKey);
+
+        try {
+            PluggyItemApiResponse response = restTemplate.exchange(
+                    baseUrl + "/items/" + itemId,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    PluggyItemApiResponse.class).getBody();
+            if (response == null || response.id() == null) {
+                throw new BusinessException("A Pluggy não retornou dados para o item " + itemId + ".");
+            }
+            String bankName = response.connector() != null ? response.connector().name() : null;
+            if (bankName == null || bankName.isBlank()) {
+                bankName = "Banco não identificado";
+            }
+            return new ItemInfo(response.id(), bankName, response.status());
+        } catch (RestClientException ex) {
+            log.error("Falha ao buscar item {} na Pluggy: {}", itemId, ex.getMessage(), ex);
+            throw new BusinessException("Não foi possível consultar a conexão bancária na Pluggy. Tente novamente em instantes.");
+        }
+    }
+
     /** Retorna o apiKey em cache, renovando via POST /auth se estiver ausente/expirado. */
     private synchronized String getApiKey() {
         if (clientId.isBlank() || clientSecret.isBlank()) {
@@ -124,5 +159,15 @@ public class PluggyClient {
     }
 
     private record ConnectTokenApiResponse(String accessToken) {
+    }
+
+    /** Dados de um Item da Pluggy relevantes para o FinanceCash (ver getItem). */
+    public record ItemInfo(String itemId, String bankName, String status) {
+    }
+
+    private record PluggyItemApiResponse(String id, ConnectorApiResponse connector, String status) {
+    }
+
+    private record ConnectorApiResponse(String name) {
     }
 }

@@ -20,21 +20,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Sincroniza o que a Pluggy traz de uma conexão para o modelo de domínio do FinanceCash
- * (Account/BalanceSnapshot para contas tipo BANK, CreditCard para contas tipo CREDIT) — ver
- * docs/OPEN-FINANCE-E-BOLETOS.md, seção 2.3.
- *
- * Regra combinada com o usuário: não duplicar contas — casa pelo par (nome do banco, tipo
- * de conta) já cadastrado e só substitui o saldo do dia; se não existir, cria a conta.
- * Cartões seguem a mesma ideia, casando só por nome do banco (CreditCard não tem campo de
- * tipo) — ver syncCreditCard.
- */
 @Service
 public class AccountSyncService {
+
+    /** Quantos dias antes do último sync a janela de transações começa, para cobrir POSTED que só assentaram depois. */
+    private static final int SYNC_OVERLAP_DAYS = 3;
+    /** Janela de transações na primeira sincronização de uma conexão (sem lastSyncAt ainda). */
+    private static final int FIRST_SYNC_LOOKBACK_DAYS = 90;
 
     private final AccountRepository accountRepository;
     private final BalanceSnapshotRepository balanceSnapshotRepository;
@@ -42,6 +38,7 @@ public class AccountSyncService {
     private final CreditCardRepository creditCardRepository;
     private final PluggyClient pluggyClient;
     private final CurrentUserProvider currentUserProvider;
+    private final TransactionImportService transactionImportService;
 
     public AccountSyncService(
             AccountRepository accountRepository,
@@ -49,13 +46,15 @@ public class AccountSyncService {
             BankConnectionRepository bankConnectionRepository,
             CreditCardRepository creditCardRepository,
             PluggyClient pluggyClient,
-            CurrentUserProvider currentUserProvider) {
+            CurrentUserProvider currentUserProvider,
+            TransactionImportService transactionImportService) {
         this.accountRepository = accountRepository;
         this.balanceSnapshotRepository = balanceSnapshotRepository;
         this.bankConnectionRepository = bankConnectionRepository;
         this.creditCardRepository = creditCardRepository;
         this.pluggyClient = pluggyClient;
         this.currentUserProvider = currentUserProvider;
+        this.transactionImportService = transactionImportService;
     }
 
     @Transactional
@@ -67,11 +66,14 @@ public class AccountSyncService {
             throw new ResourceNotFoundException("Conexão não encontrada: " + connectionId);
         }
 
+        Instant previousLastSyncAt = connection.getLastSyncAt();
+        LocalDate transactionsTo = LocalDate.now();
+        LocalDate transactionsFrom = previousLastSyncAt != null
+                ? previousLastSyncAt.atZone(ZoneId.systemDefault()).toLocalDate().minusDays(SYNC_OVERLAP_DAYS)
+                : transactionsTo.minusDays(FIRST_SYNC_LOOKBACK_DAYS);
+
         List<PluggyClient.AccountInfo> pluggyAccounts = pluggyClient.listAccounts(connection.getItemId());
 
-        // Contas CREDIT da Pluggy não trazem um nome de banco confiável (ex.: "OUTROS",
-        // "BANDEIRADO" em vez de "Banco Bradesco"). Como cada BankConnection/item representa
-        // um único banco real, usamos o nome descoberto numa conta BANK da mesma conexão.
         String connectionBankName = pluggyAccounts.stream()
                 .filter(a -> "BANK".equals(a.type()))
                 .map(this::resolveBankName)
@@ -85,6 +87,7 @@ public class AccountSyncService {
         int creditCardsUpdated = 0;
         int creditCardsSkipped = 0;
         int creditCardsWithEstimatedClosingDay = 0;
+        int entriesImported = 0;
 
         for (PluggyClient.AccountInfo pluggyAccount : pluggyAccounts) {
             if ("CREDIT".equals(pluggyAccount.type())) {
@@ -99,12 +102,15 @@ public class AccountSyncService {
                     case UPDATED -> creditCardsUpdated++;
                     case SKIPPED -> creditCardsSkipped++;
                 }
+                if (cardResult.card() != null) {
+                    entriesImported += transactionImportService.importForCreditCard(
+                            user, cardResult.card(), pluggyAccount.id(), transactionsFrom, transactionsTo);
+                }
                 continue;
             }
 
             AccountType type = mapType(pluggyAccount.subtype());
             if (!"BANK".equals(pluggyAccount.type()) || type == null) {
-                // Tipo/subtipo que a Pluggy ainda não documentou pra gente (ex.: INVESTMENT).
                 continue;
             }
 
@@ -127,33 +133,21 @@ public class AccountSyncService {
             }
 
             upsertTodaySnapshot(account, pluggyAccount.balance());
+            entriesImported += transactionImportService.importForAccount(
+                    user, account, pluggyAccount.id(), transactionsFrom, transactionsTo);
         }
 
         connection.setLastSyncAt(Instant.now());
         bankConnectionRepository.save(connection);
 
         return new SyncResultDTO(accountsCreated, accountsUpdated, creditCardsCreated, creditCardsUpdated,
-                creditCardsSkipped, creditCardsWithEstimatedClosingDay);
+                creditCardsSkipped, creditCardsWithEstimatedClosingDay, entriesImported);
     }
 
-    /**
-     * Sincroniza um cartão de crédito. Precisa do nome do banco (vem de uma conta BANK da
-     * mesma conexão, não do próprio cartão) e de creditData.balanceDueDate. Sem qualquer um
-     * dos dois, não dá pra sincronizar com segurança — fica como "skipped".
-     *
-     * creditData.balanceCloseDate (dia de fechamento) veio nulo nos 3 cartões reais testados
-     * (Bradesco, C6, Nubank via MeuPluggy) mesmo com balanceDueDate preenchido — não é um bug
-     * de parsing, a Pluggy simplesmente não manda esse campo nesse conector/tier. Pra não
-     * travar a sincronização por causa disso: ao ATUALIZAR um cartão já cadastrado, só mexe
-     * em dueDay (o closingDay que já está lá, seja do usuário ou de uma estimativa anterior,
-     * fica intacto); ao CRIAR um cartão novo, estima o fechamento como 10 dias antes do
-     * vencimento (convenção comum, mas é só uma estimativa) e marca closingDayEstimated=true,
-     * pra a tela avisar o usuário a conferir/corrigir via "Editar" em Cartões.
-     */
     private CreditCardSyncResult syncCreditCard(AppUser user, PluggyClient.AccountInfo pluggyAccount, String connectionBankName) {
         PluggyClient.CreditDataInfo creditData = pluggyAccount.creditData();
         if (connectionBankName == null || creditData == null || creditData.balanceDueDate() == null) {
-            return new CreditCardSyncResult(CreditCardSyncOutcome.SKIPPED, false);
+            return new CreditCardSyncResult(CreditCardSyncOutcome.SKIPPED, false, null);
         }
 
         int dueDay = creditData.balanceDueDate().getDayOfMonth();
@@ -174,19 +168,18 @@ public class AccountSyncService {
                     .dueDay(dueDay)
                     .active(true)
                     .build();
-            creditCardRepository.save(card);
-            return new CreditCardSyncResult(CreditCardSyncOutcome.CREATED, !closingDayKnown);
+            card = creditCardRepository.save(card);
+            return new CreditCardSyncResult(CreditCardSyncOutcome.CREATED, !closingDayKnown, card);
         }
 
         card.setDueDay(dueDay);
         if (closingDayKnown) {
             card.setClosingDay(creditData.balanceCloseDate().getDayOfMonth());
         }
-        creditCardRepository.save(card);
-        return new CreditCardSyncResult(CreditCardSyncOutcome.UPDATED, false);
+        card = creditCardRepository.save(card);
+        return new CreditCardSyncResult(CreditCardSyncOutcome.UPDATED, false, card);
     }
 
-    /** Estimativa (não confirmada pela Pluggy): fatura fecha ~10 dias antes de vencer. */
     private int estimateClosingDay(LocalDate balanceDueDate) {
         return balanceDueDate.minusDays(10).getDayOfMonth();
     }
@@ -234,6 +227,6 @@ public class AccountSyncService {
         CREATED, UPDATED, SKIPPED
     }
 
-    private record CreditCardSyncResult(CreditCardSyncOutcome outcome, boolean closingDayEstimated) {
+    private record CreditCardSyncResult(CreditCardSyncOutcome outcome, boolean closingDayEstimated, CreditCard card) {
     }
 }

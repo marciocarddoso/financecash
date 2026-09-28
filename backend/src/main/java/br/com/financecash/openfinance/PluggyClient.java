@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -133,8 +134,8 @@ public class PluggyClient {
      * Conectados" pede o detalhe de uma conexão. A importação de contas (tipo BANK) como
      * Account/BalanceSnapshot, e de cartões (tipo CREDIT, usando creditData.balanceCloseDate/
      * balanceDueDate) como CreditCard, é feita pelo AccountSyncService, que chama este método
-     * na hora de sincronizar; importar transações como Entry ainda não foi feito — ver
-     * TransactionImportService, próxima fase.
+     * na hora de sincronizar; a importação de transações como Entry é feita pelo
+     * TransactionImportService, que chama listTransactions para cada conta/cartão sincronizado.
      */
     public List<AccountInfo> listAccounts(String itemId) {
         String apiKey = getApiKey();
@@ -158,6 +159,56 @@ public class PluggyClient {
         } catch (RestClientException ex) {
             log.error("Falha ao listar contas do item {} na Pluggy: {}", itemId, ex.getMessage(), ex);
             throw new BusinessException("Não foi possível consultar as contas dessa conexão na Pluggy. Tente novamente em instantes.");
+        }
+    }
+
+    /**
+     * Lista as transações de uma conta (corrente/poupança/cartão) da Pluggy num intervalo de
+     * datas. Usado pelo TransactionImportService para importar lançamentos automaticamente a
+     * partir de um {@code accountId} já resolvido via listAccounts.
+     *
+     * <p><strong>Achado em produção</strong>: o endpoint antigo {@code GET /transactions} (com
+     * {@code from}/{@code to}/{@code pageSize}) está desativado pela Pluggy — retorna
+     * {@code 410 Gone} com {@code ENDPOINT_DEPRECATED}, orientando usar {@code GET
+     * /v2/transactions} com paginação por cursor. Migrado para o v2, com os parâmetros
+     * {@code dateFrom}/{@code dateTo} (em vez de {@code from}/{@code to}) — confirmado contra
+     * docs.pluggy.ai/en/reference/transactions-list-by-cursor. Sem paginação por enquanto (v1
+     * da nossa importação): o v2 já devolve até 500 transações por página (fixo, sem parâmetro
+     * de tamanho), cobrindo o volume esperado de um usuário pessoa física num intervalo de
+     * poucos dias/meses; o cursor {@code next} da resposta é ignorado por ora — se algum dia
+     * uma conta tiver mais de 500 transações no intervalo sincronizado, essa página passará a
+     * precisar seguir o cursor até {@code next} vir nulo.
+     *
+     * @param accountId identificador da conta na Pluggy (AccountInfo.id()).
+     * @param from       data inicial (inclusive) do intervalo.
+     * @param to         data final (inclusive) do intervalo.
+     */
+    public List<TransactionInfo> listTransactions(String accountId, LocalDate from, LocalDate to) {
+        String apiKey = getApiKey();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-API-KEY", apiKey);
+
+        String url = baseUrl + "/v2/transactions?accountId=" + accountId
+                + "&dateFrom=" + from + "&dateTo=" + to;
+
+        try {
+            PluggyTransactionsApiResponse response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    PluggyTransactionsApiResponse.class).getBody();
+            if (response == null || response.results() == null) {
+                return List.of();
+            }
+            return response.results().stream()
+                    .map(t -> new TransactionInfo(t.id(), t.description(), t.amount(),
+                            t.date() != null ? t.date().atZone(ZoneOffset.UTC).toLocalDate() : null,
+                            t.type(), t.status(), t.category()))
+                    .toList();
+        } catch (RestClientException ex) {
+            log.error("Falha ao listar transações da conta {} na Pluggy: {}", accountId, ex.getMessage(), ex);
+            throw new BusinessException("Não foi possível consultar as transações dessa conta na Pluggy. Tente novamente em instantes.");
         }
     }
 
@@ -230,6 +281,26 @@ public class PluggyClient {
     public record CreditDataInfo(
             String brand, LocalDate balanceCloseDate, LocalDate balanceDueDate,
             BigDecimal creditLimit, BigDecimal availableCreditLimit) {
+    }
+
+    /**
+     * Transação trazida ao vivo da Pluggy — ver listTransactions. {@code amount} segue a
+     * convenção da Pluggy: para contas correntes/poupança, positivo = entrada e negativo =
+     * saída; para cartão de crédito, positivo = compra/débito na fatura e negativo =
+     * pagamento/estorno. {@code category} só vem preenchido em planos Pro+ da Pluggy — pode vir
+     * null no plano gratuito, caso em que o TransactionImportService usa uma categoria genérica.
+     */
+    public record TransactionInfo(
+            String id, String description, BigDecimal amount, LocalDate date,
+            String type, String status, String category) {
+    }
+
+    private record PluggyTransactionsApiResponse(List<PluggyTransactionApiResponse> results) {
+    }
+
+    private record PluggyTransactionApiResponse(
+            String id, String description, BigDecimal amount, Instant date,
+            String type, String status, String category) {
     }
 
     private record PluggyAccountsApiResponse(List<PluggyAccountApiResponse> results) {

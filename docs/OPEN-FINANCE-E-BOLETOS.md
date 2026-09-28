@@ -118,11 +118,11 @@ Novo módulo `openfinance` (paralelo ao módulo `boleto` que já existe), com:
   cada `Account` vinculada e gravar um novo `BalanceSnapshot` — isso substitui
   a atualização manual de saldo que existe hoje.
 - `TransactionImportService`: usa as transações trazidas pela Pluggy para
-  criar `Entry` com `origin = IMPORTADO_CARTAO` (compras de cartão) ou uma nova
-  origem `IMPORTADO_EXTRATO` (movimentações de conta corrente/PIX), com o mesmo
-  mecanismo de deduplicação por (descrição, data, valor) que o
-  `EntryImportService` (importação CSV) já usa — os dois importadores podem
-  inclusive compartilhar a lógica de dedup/categorização automática.
+  criar `Entry` com `origin = IMPORTADO_CARTAO` (compras de cartão) ou
+  `IMPORTADO_EXTRATO` (movimentações de conta corrente/PIX), com o mesmo
+  mecanismo de deduplicação por (descrição, data, valor) e categorização
+  automática por nome que o `EntryImportService` (importação CSV) já usa.
+  Implementado — ver item 8 em 2.4.
 
 Nenhuma dessas classes muda o modelo de domínio existente (`Entry.origin` já
 foi pensado para isso — ver `docs/MODELO-DOMINIO.md`); é só uma nova origem de
@@ -179,8 +179,8 @@ dado alimentando a mesma tabela `entry`.
    `CHECKING_ACCOUNT`/`SAVINGS_ACCOUNT` para conta corrente/poupança, `CREDIT`
    + `CREDIT_CARD` para cartão), `name`/`marketingName` (nome do banco pra
    contas `BANK`; genérico/sem identidade de banco pra `CREDIT`, ex.:
-   "OUTROS", "BANDEIRADO" — confirmado em uso real), `balance`. `listTransactions`
-   ainda não foi implementado.
+   "OUTROS", "BANDEIRADO" — confirmado em uso real), `balance`. `listTransactions(accountId, from, to)`
+   também foi implementado (`GET /transactions`), usado pelo `TransactionImportService` — ver item 8.
 7. [x] `AccountSyncService` implementado
    (`backend/.../application/service/AccountSyncService.java`, exposto em
    `POST /api/openfinance/connections/{id}/sync`, botão "Sincronizar" na tela
@@ -215,13 +215,76 @@ dado alimentando a mesma tabela `entry`.
    usuário. Por causa disso, também foi adicionada edição de `CreditCard`
    (nome, banco, dia de fechamento/vencimento — `PUT /api/credit-cards/{id}`,
    botão "Editar" em Cartões), pra corrigir a estimativa com o dado real
-   quando o usuário souber. `TransactionImportService` (importar `Entry` a
-   partir de transações) ainda não foi implementado — depende de
-   `listTransactions`.
-8. [ ] Prototipar contra uma conta sandbox da Pluggy antes de expandir para
-   todas as contas reais conectadas — ficou menos crítico depois do item 6/7
-   já terem sido validados direto com as contas reais, mas continua útil pra
-   testes automatizados no futuro.
+   quando o usuário souber.
+8. [x] `TransactionImportService` implementado
+   (`backend/.../application/service/TransactionImportService.java`), chamado
+   automaticamente pelo `AccountSyncService` dentro do próprio `sync` — não é
+   um passo separado, cada clique em "Sincronizar" já importa transações de
+   todas as contas/cartões daquela conexão. A janela de busca (`from`/`to`
+   passados pra `listTransactions`) usa o `lastSyncAt` anterior da
+   `BankConnection` com 3 dias de sobreposição (cobre transações que só
+   assentam como `POSTED` alguns dias depois de aparecerem), ou os últimos 90
+   dias na primeira sincronização de uma conexão. Nova origem
+   `EntryOrigin.IMPORTADO_EXTRATO` para movimentações de conta corrente/PIX
+   (sem migração — `entry.origin` é `varchar` sem `CHECK` constraint).
+   Reaproveita a dedup por (descrição, `dueDate`, valor) e a categorização
+   automática por nome do `EntryImportService` (CSV).
+
+   Contas: só transações `status=POSTED` viram `Entry`, já como `PAGO` (é um
+   movimento que já aconteceu) — `RECEITA` se `amount` positivo, `DESPESA` se
+   negativo (convenção padrão da Pluggy pra contas).
+
+   Cartões: só `amount` positivo (compra/débito na fatura, convenção da
+   Pluggy pra cartão) vira `Entry`, como `PENDENTE` com origem
+   `IMPORTADO_CARTAO`; `amount` negativo (pagamento/estorno da fatura) é
+   ignorado de propósito, porque esse valor já aparece como débito na conta
+   bancária que paga a fatura — importar os dois lados duplicaria o gasto. O
+   `dueDate` é calculado a partir de `closingDay`/`dueDay` do `CreditCard`
+   (novo método `CreditCard.calculateInvoiceDueDate`): compra até o dia de
+   fechamento entra na fatura que fecha naquele mês, senão entra na do mês
+   seguinte; o vencimento nunca fica igual ou antes do fechamento (empurra
+   pro mês seguinte quando `dueDay` < `closingDay`, caso comum).
+
+   **Achado em produção, com dado real**: o endpoint documentado
+   `GET /transactions` estava desativado — a Pluggy retornou `410 Gone`
+   (`ENDPOINT_DEPRECATED`) já no primeiro teste real, orientando usar
+   `GET /v2/transactions` com paginação por cursor. `PluggyClient.listTransactions`
+   foi migrado pra v2 (`dateFrom`/`dateTo` no lugar de `from`/`to`; sem
+   `pageSize`, o v2 já pagina fixo em até 500 por página). Sem paginação
+   implementada por enquanto — cobre o volume esperado de um usuário pessoa
+   física num intervalo de poucos dias/meses; se algum dia passar de 500
+   transações numa única sincronização, precisa seguir o cursor `next` da
+   resposta.
+
+   **Ponto ainda não confirmado com dado real**: o campo `category` de
+   `/v2/transactions` é documentado como exclusivo de planos Pro+. O código já
+   assume que vai vir `null` no plano gratuito do Marcio e cai numa categoria
+   genérica "Outros" nesse caso — mas isso só será confirmado de fato quando
+   ele testar com transações reais.
+
+9. [ ] Prototipar contra uma conta sandbox da Pluggy antes de expandir para
+   todas as contas reais conectadas — ficou menos crítico depois dos itens
+   6/7/8 já terem sido validados direto com as contas reais, mas continua
+   útil pra testes automatizados no futuro.
+
+   **Pendência aberta, primeiro teste real (28/09)**: a sincronização
+   funcionou (sem erro), mas importou bem menos do que o esperado —
+   praticamente só lançamentos de extrato de conta, quase nada de cartão.
+   Hipótese mais provável, a investigar antes de mais nada na próxima sessão:
+   essa `BankConnection` já tinha `lastSyncAt` preenchido de testes
+   anteriores (da sincronização de contas/cartões, feita antes do
+   `TransactionImportService` existir) — então a importação de transações
+   não caiu no caminho "primeira sincronização" (90 dias pra trás), e sim no
+   caminho normal (`lastSyncAt` anterior menos 3 dias de sobreposição), que é
+   uma janela bem estreita. Isso explicaria bater com o que apareceu: PIX/
+   débitos de conta dos últimos dias entraram, mas compras de cartão de mais
+   cedo na fatura ainda aberta (que pode ter até ~25 dias, dependendo do
+   `closingDay`) ficaram de fora. Se for isso, o comportamento real (assim
+   que a janela normal passar a cobrir um ciclo de fatura inteiro) deve ficar
+   correto sozinho nas próximas sincronizações — mas vale confirmar contando
+   quantas transações a Pluggy realmente tem no período e comparando com o
+   que entrou, e considerar aumentar a sobreposição/janela mínima se o
+   ciclo de fatura for tipicamente maior que uns dias.
 
 ## 3. Resumo da decisão para as duas frentes
 

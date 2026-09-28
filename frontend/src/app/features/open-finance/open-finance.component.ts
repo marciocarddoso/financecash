@@ -181,6 +181,7 @@ export class OpenFinanceComponent implements OnInit {
         if (result.accountsUpdated > 0) parts.push(`${result.accountsUpdated} conta(s) atualizada(s)`);
         if (result.creditCardsCreated > 0) parts.push(`${result.creditCardsCreated} cartão(ões) novo(s)`);
         if (result.creditCardsUpdated > 0) parts.push(`${result.creditCardsUpdated} cartão(ões) atualizado(s)`);
+        if (result.entriesImported > 0) parts.push(`${result.entriesImported} lançamento(s) importado(s)`);
         let message = parts.length > 0 ? `Sincronizado: ${parts.join(', ')}.` : 'Sincronizado: nenhuma novidade, tudo já atualizado.';
         if (result.creditCardsWithEstimatedClosingDay > 0) {
           message += ` ${result.creditCardsWithEstimatedClosingDay} cartão(ões) com dia de fechamento ESTIMADO (a Pluggy não informou) — confira em Cartões e corrija se precisar.`;

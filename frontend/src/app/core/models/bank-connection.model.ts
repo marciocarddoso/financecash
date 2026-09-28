@@ -34,4 +34,5 @@ export interface SyncResult {
   creditCardsUpdated: number;
   creditCardsSkipped: number;
   creditCardsWithEstimatedClosingDay: number;
+  entriesImported: number;
 }

@@ -48,10 +48,12 @@ class AccountSyncServiceTest {
     private PluggyClient pluggyClient;
     @Mock
     private CurrentUserProvider currentUserProvider;
+    @Mock
+    private TransactionImportService transactionImportService;
 
     private AccountSyncService service() {
         return new AccountSyncService(accountRepository, balanceSnapshotRepository, bankConnectionRepository,
-                creditCardRepository, pluggyClient, currentUserProvider);
+                creditCardRepository, pluggyClient, currentUserProvider, transactionImportService);
     }
 
     private AppUser user() {
@@ -311,6 +313,42 @@ class AccountSyncServiceTest {
         assertThat(result.creditCardsCreated()).isZero();
         assertThat(result.creditCardsUpdated()).isZero();
         assertThat(result.creditCardsSkipped()).isEqualTo(1);
+    }
+
+    @Test
+    void deveSomarLancamentosImportadosDeContasECartoes() {
+        AppUser user = user();
+        BankConnection connection = connection(user);
+        var creditData = new PluggyClient.CreditDataInfo("MASTERCARD", LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 20),
+                new BigDecimal("20000.00"), new BigDecimal("1296.73"));
+
+        when(currentUserProvider.getCurrentUser()).thenReturn(user);
+        when(bankConnectionRepository.findById(connection.getId())).thenReturn(Optional.of(connection));
+        when(pluggyClient.listAccounts("item-1")).thenReturn(List.of(
+                bankAccount("acc-1", "CHECKING_ACCOUNT", "31350519-5", "C6 BANK", new BigDecimal("0.00")),
+                creditAccount("acc-2", "4055", "BANDEIRADO", new BigDecimal("18703.27"), creditData)
+        ));
+        lenient().when(accountRepository.findByOwnerIdAndBankNameIgnoreCaseAndType(any(), any(), any())).thenReturn(Optional.empty());
+        lenient().when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
+            Account a = invocation.getArgument(0);
+            a.setId(UUID.randomUUID());
+            return a;
+        });
+        lenient().when(balanceSnapshotRepository.findByAccountIdAndReferenceDate(any(), any())).thenReturn(Optional.empty());
+        when(creditCardRepository.findByOwnerIdAndBankNameIgnoreCase(user.getId(), "C6 BANK")).thenReturn(Optional.empty());
+        lenient().when(creditCardRepository.save(any(CreditCard.class))).thenAnswer(invocation -> {
+            CreditCard c = invocation.getArgument(0);
+            c.setId(UUID.randomUUID());
+            return c;
+        });
+        when(transactionImportService.importForAccount(any(), any(), org.mockito.ArgumentMatchers.eq("acc-1"), any(), any()))
+                .thenReturn(2);
+        when(transactionImportService.importForCreditCard(any(), any(), org.mockito.ArgumentMatchers.eq("acc-2"), any(), any()))
+                .thenReturn(3);
+
+        SyncResultDTO result = service().syncConnection(connection.getId());
+
+        assertThat(result.entriesImported()).isEqualTo(5);
     }
 
     @Test

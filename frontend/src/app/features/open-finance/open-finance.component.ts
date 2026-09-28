@@ -15,8 +15,10 @@ import { BankAccountInfo, BankConnection } from '../../core/models/bank-connecti
  * de fato está por trás de cada conexão, "Ver contas" busca ao vivo na Pluggy
  * (PluggyClient.listAccounts) e mostra nome/número/saldo de cada conta daquele item.
  *
- * Ainda não sincroniza isso pro FinanceCash de fato (isso é a próxima fase,
- * AccountSyncService / TransactionImportService) — aqui é só consulta/exibição.
+ * O botão "Sincronizar" chama o AccountSyncService no backend, que traz as contas
+ * tipo BANK (corrente/poupança) daquela conexão pra dentro do FinanceCash como
+ * Account/BalanceSnapshot, casando por nome do banco + tipo pra não duplicar.
+ * Cartões de crédito (tipo CREDIT) ainda não são sincronizados automaticamente.
  */
 @Component({
   selector: 'fc-open-finance',
@@ -55,6 +57,12 @@ import { BankAccountInfo, BankConnection } from '../../core/models/bank-connecti
                   <button class="fc-link" (click)="toggleAccounts(connection)">
                     {{ isExpanded(connection.id) ? 'Ocultar contas' : 'Ver contas' }}
                   </button>
+                  <button class="fc-link" [disabled]="syncingId() === connection.id" (click)="sync(connection)">
+                    {{ syncingId() === connection.id ? 'Sincronizando...' : 'Sincronizar' }}
+                  </button>
+                  @if (syncMessageByConnection()[connection.id]) {
+                    <div class="fc-hint fc-sync-message">{{ syncMessageByConnection()[connection.id] }}</div>
+                  }
                 </td>
               </tr>
               @if (isExpanded(connection.id)) {
@@ -98,6 +106,7 @@ import { BankAccountInfo, BankConnection } from '../../core/models/bank-connecti
     .fc-status--erro { background: #fee2e2; color: #b91c1c; }
     .fc-detail-row td { background: var(--fc-color-bg-muted, #f8fafc); padding: 0.75rem 1rem; }
     .fc-table--nested { margin: 0; }
+    .fc-sync-message { margin-top: 0.25rem; max-width: 220px; }
   `],
 })
 export class OpenFinanceComponent implements OnInit {
@@ -110,6 +119,9 @@ export class OpenFinanceComponent implements OnInit {
   readonly expandedIds = signal<Set<string>>(new Set());
   readonly loadingAccountsId = signal<string | null>(null);
   readonly accountsByConnection = signal<Record<string, BankAccountInfo[]>>({});
+
+  readonly syncingId = signal<string | null>(null);
+  readonly syncMessageByConnection = signal<Record<string, string>>({});
 
   ngOnInit(): void {
     this.reload();
@@ -155,6 +167,36 @@ export class OpenFinanceComponent implements OnInit {
       error: () => {
         this.accountsByConnection.set({ ...this.accountsByConnection(), [connection.id]: [] });
         this.loadingAccountsId.set(null);
+      },
+    });
+  }
+
+  sync(connection: BankConnection): void {
+    this.syncingId.set(connection.id);
+    this.openFinanceService.sync(connection.id).subscribe({
+      next: (result) => {
+        this.syncingId.set(null);
+        const parts: string[] = [];
+        if (result.accountsCreated > 0) parts.push(`${result.accountsCreated} conta(s) nova(s)`);
+        if (result.accountsUpdated > 0) parts.push(`${result.accountsUpdated} conta(s) atualizada(s)`);
+        let message = parts.length > 0 ? `Sincronizado: ${parts.join(', ')}.` : 'Sincronizado: nenhuma conta nova, saldo já atualizado.';
+        if (result.creditCardsSkipped > 0) {
+          message += ` ${result.creditCardsSkipped} cartão(ões) de crédito ainda não sincroniza(m) automaticamente.`;
+        }
+        this.syncMessageByConnection.set({ ...this.syncMessageByConnection(), [connection.id]: message });
+
+        const accounts = { ...this.accountsByConnection() };
+        delete accounts[connection.id];
+        this.accountsByConnection.set(accounts);
+
+        this.reload();
+      },
+      error: () => {
+        this.syncingId.set(null);
+        this.syncMessageByConnection.set({
+          ...this.syncMessageByConnection(),
+          [connection.id]: 'Não foi possível sincronizar essa conexão agora. Tente novamente em instantes.',
+        });
       },
     });
   }

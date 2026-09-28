@@ -129,9 +129,10 @@ public class PluggyClient {
     /**
      * Lista as contas (corrente, poupança, cartão) de um Item já conectado. Não é
      * persistida no FinanceCash — é consultada ao vivo sempre que a tela "Bancos
-     * Conectados" pede o detalhe de uma conexão. A importação como Entry/Account
-     * (AccountSyncService/TransactionImportService, próxima fase) é que vai gravar
-     * isso de fato no banco.
+     * Conectados" pede o detalhe de uma conexão. A importação de contas (tipo BANK) como
+     * Account/BalanceSnapshot é feita pelo AccountSyncService, que chama este método na
+     * hora de sincronizar; cartões de crédito (tipo CREDIT) ainda não são sincronizados
+     * (falta extrair dados de fatura da Pluggy) — ver TransactionImportService, próxima fase.
      */
     public List<AccountInfo> listAccounts(String itemId) {
         String apiKey = getApiKey();

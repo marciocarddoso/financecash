@@ -44,4 +44,10 @@ public class AccountController {
         accountService.registerBalanceSnapshot(id, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
+        accountService.deactivate(id);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -173,17 +173,32 @@ dado alimentando a mesma tabela `entry`.
    'pluggy-connect-sdk'`. Confirmado compilando um arquivo de teste isolado
    antes de usar no componente; com o import default o TypeScript falha com
    "This expression is not constructable."
-6. [ ] Implementar `listAccounts(itemId)` e `listTransactions(accountId)` no
-   `PluggyClient` (endpoints `GET /accounts` e `GET /transactions`) — os
-   nomes de campo exatos da resposta serão confirmados contra a API real (ou
-   sandbox) antes de mapear os DTOs, para não arriscar um mapeamento
-   silenciosamente errado.
-7. [ ] `AccountSyncService` e `TransactionImportService` (ver seção 2.3) —
-   sincronização periódica de saldo e importação de transações como `Entry`.
-   `AccountSyncService` também é o lugar natural para atualizar `lastSyncAt`
-   em `BankConnection` a cada rodada.
+6. [x] Implementado `listAccounts(itemId)` no `PluggyClient` (`GET
+   /accounts?itemId=`), confirmado contra as 4 conexões reais do Marcio — os
+   campos reais batem com o esperado: `type`/`subtype` (`BANK` +
+   `CHECKING_ACCOUNT`/`SAVINGS_ACCOUNT` para conta corrente/poupança, `CREDIT`
+   + `CREDIT_CARD` para cartão), `name`/`marketingName` (nome do banco pra
+   contas `BANK`; genérico/sem identidade de banco pra `CREDIT`, ex.:
+   "OUTROS", "BANDEIRADO" — confirmado em uso real), `balance`. `listTransactions`
+   ainda não foi implementado.
+7. [x] `AccountSyncService` implementado
+   (`backend/.../application/service/AccountSyncService.java`, exposto em
+   `POST /api/openfinance/connections/{id}/sync`, botão "Sincronizar" na tela
+   Bancos Conectados) — mas só para contas tipo `BANK` (corrente/poupança):
+   casa por (nome do banco, tipo) já cadastrado em `Account` e substitui o
+   `BalanceSnapshot` do dia em vez de duplicar; se não existir, cria a
+   `Account`. Atualiza `lastSyncAt` em `BankConnection` a cada sincronização.
+   Cartões de crédito (`CREDIT`) ainda **não** são sincronizados — os dados
+   reais mostram que a Pluggy não traz o nome do banco nesses casos, e
+   sincronizar num `CreditCard` exigiria também `closingDay`/`dueDay`, que
+   `listAccounts` não retorna (precisa investigar o campo `creditData` da API
+   antes de tentar). `TransactionImportService` (importar `Entry` a partir de
+   transações) também ainda não foi implementado — depende de
+   `listTransactions`.
 8. [ ] Prototipar contra uma conta sandbox da Pluggy antes de expandir para
-   todas as contas reais conectadas.
+   todas as contas reais conectadas — ficou menos crítico depois do item 6/7
+   já terem sido validados direto com as contas reais, mas continua útil pra
+   testes automatizados no futuro.
 
 ## 3. Resumo da decisão para as duas frentes
 

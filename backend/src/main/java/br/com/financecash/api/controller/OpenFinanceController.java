@@ -4,6 +4,8 @@ import br.com.financecash.application.dto.BankAccountInfoDTO;
 import br.com.financecash.application.dto.BankConnectionCreateRequest;
 import br.com.financecash.application.dto.BankConnectionDTO;
 import br.com.financecash.application.dto.ConnectTokenResponse;
+import br.com.financecash.application.dto.SyncResultDTO;
+import br.com.financecash.application.service.AccountSyncService;
 import br.com.financecash.application.service.BankConnectionService;
 import br.com.financecash.domain.model.AppUser;
 import br.com.financecash.openfinance.PluggyClient;
@@ -23,8 +25,9 @@ import java.util.UUID;
  * o widget dispara onSuccess com um itemId, que o frontend envia para /connections;
  * (3) /connections aparece na tela para o usuário ver quais bancos já conectou.
  *
- * Os próximos passos (listar contas/transações de um item e importar como Entry) entram
- * depois que este fluxo estiver validado ponta a ponta com contas reais.
+ * /connections/{id}/sync traz as contas (tipo BANK) daquele item para dentro do
+ * FinanceCash como Account/BalanceSnapshot (AccountSyncService); importar transações
+ * como Entry e sincronizar cartões de crédito ainda ficam pra próxima fase.
  */
 @RestController
 @RequestMapping("/api/openfinance")
@@ -32,14 +35,17 @@ public class OpenFinanceController {
 
     private final PluggyClient pluggyClient;
     private final BankConnectionService bankConnectionService;
+    private final AccountSyncService accountSyncService;
     private final CurrentUserProvider currentUserProvider;
 
     public OpenFinanceController(
             PluggyClient pluggyClient,
             BankConnectionService bankConnectionService,
+            AccountSyncService accountSyncService,
             CurrentUserProvider currentUserProvider) {
         this.pluggyClient = pluggyClient;
         this.bankConnectionService = bankConnectionService;
+        this.accountSyncService = accountSyncService;
         this.currentUserProvider = currentUserProvider;
     }
 
@@ -63,5 +69,11 @@ public class OpenFinanceController {
     @PostMapping("/connections")
     public ResponseEntity<BankConnectionDTO> saveConnection(@Valid @RequestBody BankConnectionCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(bankConnectionService.save(request));
+    }
+
+    /** Traz as contas (tipo BANK) da Pluggy pra dentro do FinanceCash — ver AccountSyncService. */
+    @PostMapping("/connections/{id}/sync")
+    public SyncResultDTO syncConnection(@PathVariable UUID id) {
+        return accountSyncService.syncConnection(id);
     }
 }

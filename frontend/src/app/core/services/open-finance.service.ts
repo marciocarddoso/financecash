@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { BankAccountInfo, BankConnection, BankConnectionCreateRequest, ConnectTokenResponse } from '../models/bank-connection.model';
+import { BankAccountInfo, BankConnection, BankConnectionCreateRequest, ConnectTokenResponse, SyncResult } from '../models/bank-connection.model';
 
 @Injectable({ providedIn: 'root' })
 export class OpenFinanceService {
@@ -23,5 +23,9 @@ export class OpenFinanceService {
 
   listAccounts(connectionId: string): Observable<BankAccountInfo[]> {
     return this.http.get<BankAccountInfo[]>(`${this.baseUrl}/connections/${connectionId}/accounts`);
+  }
+
+  sync(connectionId: string): Observable<SyncResult> {
+    return this.http.post<SyncResult>(`${this.baseUrl}/connections/${connectionId}/sync`, {});
   }
 }

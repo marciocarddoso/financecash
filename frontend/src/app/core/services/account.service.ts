@@ -24,4 +24,8 @@ export class AccountService {
   registerBalance(accountId: string, request: BalanceSnapshotCreateRequest): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/${accountId}/balance-snapshots`, request);
   }
+
+  deactivate(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
 }

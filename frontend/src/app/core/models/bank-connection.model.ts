@@ -26,3 +26,9 @@ export interface BankAccountInfo {
   balance: number | null;
   currencyCode: string | null;
 }
+
+export interface SyncResult {
+  accountsCreated: number;
+  accountsUpdated: number;
+  creditCardsSkipped: number;
+}

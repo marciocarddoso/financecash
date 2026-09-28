@@ -69,6 +69,7 @@ import { Account } from '../../core/models/account.model';
                     <input type="number" step="0.01" placeholder="Novo saldo" [(ngModel)]="newBalances[account.id]" [ngModelOptions]="{standalone: true}" />
                     <button class="fc-link" (click)="registerBalance(account)">Salvar</button>
                     <button class="fc-link" (click)="startEdit(account)">Editar</button>
+                    <button class="fc-link fc-link--danger" (click)="remove(account)">Remover</button>
                   </td>
                 }
               </tr>
@@ -85,6 +86,7 @@ import { Account } from '../../core/models/account.model';
     .fc-inline-form select { padding: 0.45rem 0.6rem; border: 1px solid var(--fc-color-border); border-radius: 6px; }
     td input[type="number"] { width: 110px; padding: 0.3rem 0.5rem; border: 1px solid var(--fc-color-border); border-radius: 6px; margin-right: 0.5rem; }
     .fc-link { background: none; border: none; color: var(--fc-color-primary); cursor: pointer; }
+    .fc-link--danger { color: var(--fc-color-danger); }
   `],
 })
 export class AccountsComponent implements OnInit {
@@ -151,5 +153,10 @@ export class AccountsComponent implements OnInit {
       this.editingId.set(null);
       this.reload();
     });
+  }
+
+  /** Desativa (soft delete) a conta — usado quando ela ficou obsoleta, ex.: substituída por uma conta sincronizada via Open Finance. */
+  remove(account: Account): void {
+    this.accountService.deactivate(account.id).subscribe(() => this.reload());
   }
 }

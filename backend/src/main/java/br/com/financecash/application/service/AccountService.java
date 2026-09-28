@@ -99,6 +99,24 @@ public class AccountService {
         balanceSnapshotRepository.save(snapshot);
     }
 
+    /**
+     * Desativa (soft delete) uma conta — usado quando o usuário substitui uma conta
+     * criada manualmente por uma equivalente trazida pelo AccountSyncService, ou
+     * simplesmente não usa mais aquela conta. Não apaga histórico (BalanceSnapshot
+     * continua existindo), só some da listagem (listActive já filtra por active=true).
+     */
+    @Transactional
+    public void deactivate(UUID accountId) {
+        AppUser user = currentUserProvider.getCurrentUser();
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Conta não encontrada: " + accountId));
+        if (!account.getOwner().getId().equals(user.getId())) {
+            throw new BusinessException("Esta conta não pertence ao usuário logado.");
+        }
+        account.setActive(false);
+        accountRepository.save(account);
+    }
+
     /** Soma o saldo mais recente de cada conta ativa do usuário — usado pelo DashboardService. */
     @Transactional(readOnly = true)
     public BigDecimal consolidatedBalance(UUID ownerId) {

@@ -13,3 +13,9 @@ export interface CategoryCreateRequest {
   type: CategoryType;
   colorHex?: string;
 }
+
+export interface CategoryUpdateRequest {
+  name: string;
+  type: CategoryType;
+  colorHex?: string;
+}

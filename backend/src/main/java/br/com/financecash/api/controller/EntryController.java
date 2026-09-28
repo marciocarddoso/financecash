@@ -45,6 +45,12 @@ public class EntryController {
         return entryService.markAsPaid(id, paymentDate);
     }
 
+    /** Desfaz um "marcar pago" feito sem querer — volta o lançamento pra PENDENTE. */
+    @PatchMapping("/{id}/unpay")
+    public EntryDTO markAsPending(@PathVariable UUID id) {
+        return entryService.markAsPending(id);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         entryService.delete(id);

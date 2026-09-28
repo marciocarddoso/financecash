@@ -2,12 +2,14 @@ package br.com.financecash.application.service;
 
 import br.com.financecash.application.dto.AccountCreateRequest;
 import br.com.financecash.application.dto.AccountDTO;
+import br.com.financecash.application.dto.AccountUpdateRequest;
 import br.com.financecash.application.dto.BalanceSnapshotCreateRequest;
 import br.com.financecash.domain.model.Account;
 import br.com.financecash.domain.model.AppUser;
 import br.com.financecash.domain.model.BalanceSnapshot;
 import br.com.financecash.domain.repository.AccountRepository;
 import br.com.financecash.domain.repository.BalanceSnapshotRepository;
+import br.com.financecash.exception.BusinessException;
 import br.com.financecash.exception.ResourceNotFoundException;
 import br.com.financecash.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
@@ -59,6 +61,29 @@ public class AccountService {
                 .build();
         Account saved = accountRepository.save(account);
         return AccountDTO.from(saved, null, null);
+    }
+
+    /** Corrige nome/banco/tipo de uma conta já cadastrada (ex.: erro de digitação no cadastro). */
+    @Transactional
+    public AccountDTO update(UUID accountId, AccountUpdateRequest request) {
+        AppUser user = currentUserProvider.getCurrentUser();
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Conta não encontrada: " + accountId));
+        if (!account.getOwner().getId().equals(user.getId())) {
+            throw new BusinessException("Esta conta não pertence ao usuário logado.");
+        }
+
+        account.setName(request.name());
+        account.setBankName(request.bankName());
+        account.setType(request.type());
+        account.setInvestmentDescription(request.investmentDescription());
+        Account saved = accountRepository.save(account);
+
+        var snapshot = balanceSnapshotRepository
+                .findFirstByAccountIdOrderByReferenceDateDescCreatedAtDesc(saved.getId())
+                .orElse(null);
+        return AccountDTO.from(saved, snapshot != null ? snapshot.getBalance() : null,
+                snapshot != null ? snapshot.getReferenceDate() : null);
     }
 
     @Transactional

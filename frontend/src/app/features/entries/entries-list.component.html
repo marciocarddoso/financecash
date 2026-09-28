@@ -84,6 +84,8 @@
             <td class="fc-actions">
               @if (entry.status === 'PENDENTE') {
                 <button class="fc-link" (click)="markAsPaid(entry)">Marcar pago</button>
+              } @else if (entry.status === 'PAGO') {
+                <button class="fc-link" (click)="markAsPending(entry)">Desfazer</button>
               }
               <button class="fc-link fc-link--danger" (click)="remove(entry)">Excluir</button>
             </td>

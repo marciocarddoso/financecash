@@ -35,19 +35,42 @@ import { Account } from '../../core/models/account.model';
           <tbody>
             @for (account of accounts(); track account.id) {
               <tr>
-                <td>{{ account.name }}</td>
-                <td>{{ account.bankName }}</td>
-                <td>{{ account.type }}</td>
-                <td>
-                  {{ account.latestBalance !== null ? (account.latestBalance | currency: 'BRL') : '—' }}
-                  @if (account.latestBalanceDate) {
-                    <span class="fc-hint"> ({{ account.latestBalanceDate }})</span>
-                  }
-                </td>
-                <td>
-                  <input type="number" step="0.01" placeholder="Novo saldo" [(ngModel)]="newBalances[account.id]" [ngModelOptions]="{standalone: true}" />
-                  <button class="fc-link" (click)="registerBalance(account)">Salvar</button>
-                </td>
+                @if (editingId() === account.id) {
+                  <td><input type="text" [formControl]="editForm.controls.name" /></td>
+                  <td><input type="text" [formControl]="editForm.controls.bankName" /></td>
+                  <td>
+                    <select [formControl]="editForm.controls.type">
+                      <option value="CORRENTE">Corrente</option>
+                      <option value="POUPANCA">Poupança</option>
+                      <option value="INVESTIMENTO">Investimento</option>
+                    </select>
+                  </td>
+                  <td>
+                    {{ account.latestBalance !== null ? (account.latestBalance | currency: 'BRL') : '—' }}
+                    @if (account.latestBalanceDate) {
+                      <span class="fc-hint"> ({{ account.latestBalanceDate }})</span>
+                    }
+                  </td>
+                  <td>
+                    <button class="fc-link" [disabled]="editForm.invalid" (click)="saveEdit(account)">Salvar</button>
+                    <button class="fc-link" (click)="cancelEdit()">Cancelar</button>
+                  </td>
+                } @else {
+                  <td>{{ account.name }}</td>
+                  <td>{{ account.bankName }}</td>
+                  <td>{{ account.type }}</td>
+                  <td>
+                    {{ account.latestBalance !== null ? (account.latestBalance | currency: 'BRL') : '—' }}
+                    @if (account.latestBalanceDate) {
+                      <span class="fc-hint"> ({{ account.latestBalanceDate }})</span>
+                    }
+                  </td>
+                  <td>
+                    <input type="number" step="0.01" placeholder="Novo saldo" [(ngModel)]="newBalances[account.id]" [ngModelOptions]="{standalone: true}" />
+                    <button class="fc-link" (click)="registerBalance(account)">Salvar</button>
+                    <button class="fc-link" (click)="startEdit(account)">Editar</button>
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -103,5 +126,30 @@ export class AccountsComponent implements OnInit {
         delete this.newBalances[account.id];
         this.reload();
       });
+  }
+
+  readonly editingId = signal<string | null>(null);
+
+  readonly editForm = this.fb.nonNullable.group({
+    name: ['', Validators.required],
+    bankName: ['', Validators.required],
+    type: ['CORRENTE' as 'CORRENTE' | 'POUPANCA' | 'INVESTIMENTO', Validators.required],
+  });
+
+  startEdit(account: Account): void {
+    this.editingId.set(account.id);
+    this.editForm.setValue({ name: account.name, bankName: account.bankName, type: account.type as 'CORRENTE' | 'POUPANCA' | 'INVESTIMENTO' });
+  }
+
+  cancelEdit(): void {
+    this.editingId.set(null);
+  }
+
+  saveEdit(account: Account): void {
+    if (this.editForm.invalid) return;
+    this.accountService.update(account.id, { ...this.editForm.getRawValue(), investmentDescription: account.investmentDescription ?? undefined }).subscribe(() => {
+      this.editingId.set(null);
+      this.reload();
+    });
   }
 }

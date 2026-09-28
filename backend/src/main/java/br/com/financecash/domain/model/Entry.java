@@ -90,4 +90,10 @@ public class Entry {
         this.paymentDate = paymentDate;
         this.status = EntryStatus.PAGO;
     }
+
+    /** Desfaz um "marcar pago" feito sem querer — volta pra PENDENTE e limpa a data de pagamento. */
+    public void markAsPending() {
+        this.paymentDate = null;
+        this.status = EntryStatus.PENDENTE;
+    }
 }

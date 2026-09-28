@@ -1,5 +1,6 @@
 package br.com.financecash.application.service;
 
+import br.com.financecash.application.dto.BankAccountInfoDTO;
 import br.com.financecash.application.dto.BankConnectionCreateRequest;
 import br.com.financecash.application.dto.BankConnectionDTO;
 import br.com.financecash.domain.model.AppUser;
@@ -7,12 +8,14 @@ import br.com.financecash.domain.model.BankConnection;
 import br.com.financecash.domain.model.BankConnectionStatus;
 import br.com.financecash.domain.repository.BankConnectionRepository;
 import br.com.financecash.exception.BusinessException;
+import br.com.financecash.exception.ResourceNotFoundException;
 import br.com.financecash.openfinance.PluggyClient;
 import br.com.financecash.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Persiste e lista as conexões bancárias feitas pelo usuário via widget "Pluggy
@@ -41,6 +44,26 @@ public class BankConnectionService {
         AppUser user = currentUserProvider.getCurrentUser();
         return bankConnectionRepository.findByOwnerIdOrderByConnectedAtDesc(user.getId())
                 .stream().map(BankConnectionDTO::from).toList();
+    }
+
+    /**
+     * Lista ao vivo as contas de uma conexão (chama a Pluggy na hora, não usa cache) —
+     * usada pra descobrir qual banco/conta cada BankConnection representa de fato, já
+     * que o nome salvo é o do conector (ex.: "MeuPluggy"), não o banco individual.
+     */
+    @Transactional(readOnly = true)
+    public List<BankAccountInfoDTO> listAccounts(UUID connectionId) {
+        AppUser user = currentUserProvider.getCurrentUser();
+        BankConnection connection = bankConnectionRepository.findById(connectionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Conexão não encontrada: " + connectionId));
+        if (!connection.getOwner().getId().equals(user.getId())) {
+            throw new ResourceNotFoundException("Conexão não encontrada: " + connectionId);
+        }
+
+        return pluggyClient.listAccounts(connection.getItemId()).stream()
+                .map(a -> new BankAccountInfoDTO(a.id(), a.type(), a.subtype(), a.number(), a.name(),
+                        a.marketingName(), a.balance(), a.currencyCode()))
+                .toList();
     }
 
     /**

@@ -2,6 +2,7 @@ package br.com.financecash.api.controller;
 
 import br.com.financecash.application.dto.CategoryCreateRequest;
 import br.com.financecash.application.dto.CategoryDTO;
+import br.com.financecash.application.dto.CategoryUpdateRequest;
 import br.com.financecash.application.service.CategoryService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,11 @@ public class CategoryController {
     @PostMapping
     public ResponseEntity<CategoryDTO> create(@Valid @RequestBody CategoryCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.create(request));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CategoryDTO> update(@PathVariable UUID id, @Valid @RequestBody CategoryUpdateRequest request) {
+        return ResponseEntity.ok(categoryService.update(id, request));
     }
 
     @DeleteMapping("/{id}")

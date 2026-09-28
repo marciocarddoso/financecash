@@ -29,7 +29,11 @@ export class EntryService {
     return this.http.patch<Entry>(`${this.baseUrl}/${id}/pay`, null, { params });
   }
 
-  delete(id: string): Observable<void> {
+  markAsPending(id: string): Observable<Entry> {
+    return this.http.patch<Entry>(`${this.baseUrl}/${id}/unpay`, null);
+  }
+
+    delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
 

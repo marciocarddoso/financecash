@@ -85,6 +85,15 @@ public class EntryService {
         return EntryDTO.from(entry);
     }
 
+    /** Desfaz um "marcar pago" feito sem querer. */
+    @Transactional
+    public EntryDTO markAsPending(UUID entryId) {
+        Entry entry = entryRepository.findById(entryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lançamento não encontrado: " + entryId));
+        entry.markAsPending();
+        return EntryDTO.from(entry);
+    }
+
     @Transactional
     public void delete(UUID entryId) {
         if (!entryRepository.existsById(entryId)) {

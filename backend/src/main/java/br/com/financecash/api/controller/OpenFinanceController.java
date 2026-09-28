@@ -1,5 +1,6 @@
 package br.com.financecash.api.controller;
 
+import br.com.financecash.application.dto.BankAccountInfoDTO;
 import br.com.financecash.application.dto.BankConnectionCreateRequest;
 import br.com.financecash.application.dto.BankConnectionDTO;
 import br.com.financecash.application.dto.ConnectTokenResponse;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Integração com Open Finance via Pluggy — ver docs/OPEN-FINANCE-E-BOLETOS.md, seção 2.3,
@@ -51,6 +53,11 @@ public class OpenFinanceController {
     @GetMapping("/connections")
     public List<BankConnectionDTO> listConnections() {
         return bankConnectionService.list();
+    }
+
+    @GetMapping("/connections/{id}/accounts")
+    public List<BankAccountInfoDTO> listConnectionAccounts(@PathVariable UUID id) {
+        return bankConnectionService.listAccounts(id);
     }
 
     @PostMapping("/connections")

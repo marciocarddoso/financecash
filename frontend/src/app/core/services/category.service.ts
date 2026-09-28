@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Category, CategoryCreateRequest } from '../models/category.model';
+import { Category, CategoryCreateRequest, CategoryUpdateRequest } from '../models/category.model';
 
 @Injectable({ providedIn: 'root' })
 export class CategoryService {
@@ -15,6 +15,10 @@ export class CategoryService {
 
   create(request: CategoryCreateRequest): Observable<Category> {
     return this.http.post<Category>(this.baseUrl, request);
+  }
+
+  update(id: string, request: CategoryUpdateRequest): Observable<Category> {
+    return this.http.put<Category>(`${this.baseUrl}/${id}`, request);
   }
 
   deactivate(id: string): Observable<void> {

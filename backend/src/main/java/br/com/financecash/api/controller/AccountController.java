@@ -2,6 +2,7 @@ package br.com.financecash.api.controller;
 
 import br.com.financecash.application.dto.AccountCreateRequest;
 import br.com.financecash.application.dto.AccountDTO;
+import br.com.financecash.application.dto.AccountUpdateRequest;
 import br.com.financecash.application.dto.BalanceSnapshotCreateRequest;
 import br.com.financecash.application.service.AccountService;
 import jakarta.validation.Valid;
@@ -30,6 +31,11 @@ public class AccountController {
     @PostMapping
     public ResponseEntity<AccountDTO> create(@Valid @RequestBody AccountCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(accountService.create(request));
+    }
+
+    @PutMapping("/{id}")
+    public AccountDTO update(@PathVariable UUID id, @Valid @RequestBody AccountUpdateRequest request) {
+        return accountService.update(id, request);
     }
 
     /** Registra o saldo real informado pelo usuário (consolidação manual com o banco/CDI). */

@@ -2,9 +2,11 @@ package br.com.financecash.application.service;
 
 import br.com.financecash.application.dto.CategoryCreateRequest;
 import br.com.financecash.application.dto.CategoryDTO;
+import br.com.financecash.application.dto.CategoryUpdateRequest;
 import br.com.financecash.domain.model.AppUser;
 import br.com.financecash.domain.model.Category;
 import br.com.financecash.domain.repository.CategoryRepository;
+import br.com.financecash.exception.BusinessException;
 import br.com.financecash.exception.ResourceNotFoundException;
 import br.com.financecash.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
@@ -45,9 +47,27 @@ public class CategoryService {
     }
 
     @Transactional
-    public void deactivate(UUID categoryId) {
+    public CategoryDTO update(UUID categoryId, CategoryUpdateRequest request) {
+        AppUser user = currentUserProvider.getCurrentUser();
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada: " + categoryId));
+        if (!category.getOwner().getId().equals(user.getId())) {
+            throw new BusinessException("Esta categoria não pertence ao usuário logado.");
+        }
+        category.setName(request.name());
+        category.setType(request.type());
+        category.setColorHex(request.colorHex());
+        return CategoryDTO.from(categoryRepository.save(category));
+    }
+
+    @Transactional
+    public void deactivate(UUID categoryId) {
+        AppUser user = currentUserProvider.getCurrentUser();
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada: " + categoryId));
+        if (!category.getOwner().getId().equals(user.getId())) {
+            throw new BusinessException("Esta categoria não pertence ao usuário logado.");
+        }
         category.setActive(false);
     }
 }

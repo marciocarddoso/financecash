@@ -18,6 +18,13 @@ export interface AccountCreateRequest {
   investmentDescription?: string;
 }
 
+export interface AccountUpdateRequest {
+  name: string;
+  bankName: string;
+  type: AccountType;
+  investmentDescription?: string;
+}
+
 export interface BalanceSnapshotCreateRequest {
   referenceDate: string;
   balance: number;

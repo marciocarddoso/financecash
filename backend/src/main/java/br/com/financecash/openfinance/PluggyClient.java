@@ -13,8 +13,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -124,6 +126,38 @@ public class PluggyClient {
         }
     }
 
+    /**
+     * Lista as contas (corrente, poupança, cartão) de um Item já conectado. Não é
+     * persistida no FinanceCash — é consultada ao vivo sempre que a tela "Bancos
+     * Conectados" pede o detalhe de uma conexão. A importação como Entry/Account
+     * (AccountSyncService/TransactionImportService, próxima fase) é que vai gravar
+     * isso de fato no banco.
+     */
+    public List<AccountInfo> listAccounts(String itemId) {
+        String apiKey = getApiKey();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-API-KEY", apiKey);
+
+        try {
+            PluggyAccountsApiResponse response = restTemplate.exchange(
+                    baseUrl + "/accounts?itemId=" + itemId,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    PluggyAccountsApiResponse.class).getBody();
+            if (response == null || response.results() == null) {
+                return List.of();
+            }
+            return response.results().stream()
+                    .map(a -> new AccountInfo(a.id(), a.type(), a.subtype(), a.number(), a.name(), a.marketingName(),
+                            a.balance(), a.currencyCode()))
+                    .toList();
+        } catch (RestClientException ex) {
+            log.error("Falha ao listar contas do item {} na Pluggy: {}", itemId, ex.getMessage(), ex);
+            throw new BusinessException("Não foi possível consultar as contas dessa conexão na Pluggy. Tente novamente em instantes.");
+        }
+    }
+
     /** Retorna o apiKey em cache, renovando via POST /auth se estiver ausente/expirado. */
     private synchronized String getApiKey() {
         if (clientId.isBlank() || clientSecret.isBlank()) {
@@ -169,5 +203,19 @@ public class PluggyClient {
     }
 
     private record ConnectorApiResponse(String name) {
+    }
+
+    /** Conta trazida ao vivo da Pluggy — ver listAccounts. */
+    public record AccountInfo(
+            String id, String type, String subtype, String number, String name,
+            String marketingName, BigDecimal balance, String currencyCode) {
+    }
+
+    private record PluggyAccountsApiResponse(List<PluggyAccountApiResponse> results) {
+    }
+
+    private record PluggyAccountApiResponse(
+            String id, String type, String subtype, String number, String name,
+            String marketingName, BigDecimal balance, String currencyCode) {
     }
 }

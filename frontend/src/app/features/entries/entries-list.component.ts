@@ -82,7 +82,11 @@ export class EntriesListComponent implements OnInit {
     this.entryService.markAsPaid(entry.id).subscribe(() => this.reload());
   }
 
-  remove(entry: Entry): void {
+  markAsPending(entry: Entry): void {
+    this.entryService.markAsPending(entry.id).subscribe(() => this.reload());
+  }
+
+    remove(entry: Entry): void {
     this.entryService.delete(entry.id).subscribe(() => this.reload());
   }
 

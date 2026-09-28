@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Account, AccountCreateRequest, BalanceSnapshotCreateRequest } from '../models/account.model';
+import { Account, AccountCreateRequest, AccountUpdateRequest, BalanceSnapshotCreateRequest } from '../models/account.model';
 
 @Injectable({ providedIn: 'root' })
 export class AccountService {
@@ -15,6 +15,10 @@ export class AccountService {
 
   create(request: AccountCreateRequest): Observable<Account> {
     return this.http.post<Account>(this.baseUrl, request);
+  }
+
+  update(id: string, request: AccountUpdateRequest): Observable<Account> {
+    return this.http.put<Account>(`${this.baseUrl}/${id}`, request);
   }
 
   registerBalance(accountId: string, request: BalanceSnapshotCreateRequest): Observable<void> {

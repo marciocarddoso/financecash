@@ -15,3 +15,14 @@ export interface ConnectTokenResponse {
 export interface BankConnectionCreateRequest {
   itemId: string;
 }
+
+export interface BankAccountInfo {
+  id: string;
+  type: string;
+  subtype: string | null;
+  number: string | null;
+  name: string;
+  marketingName: string | null;
+  balance: number | null;
+  currencyCode: string | null;
+}

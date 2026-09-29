@@ -41,6 +41,170 @@
   </form>
 }
 
+<div class="fc-card fc-filters">
+  <div class="fc-filters__row">
+    <label>
+      De
+      <input type="date" [value]="from()" (change)="setFrom($any($event.target).value)" />
+    </label>
+    <label>
+      Até
+      <input type="date" [value]="to()" (change)="setTo($any($event.target).value)" />
+    </label>
+    <label>
+      Categoria
+      <select [value]="categoryId()" (change)="setCategoryId($any($event.target).value)">
+        <option value="">Todas</option>
+        @for (category of categories(); track category.id) {
+          <option [value]="category.id">{{ category.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Status
+      <select [value]="status()" (change)="setStatus($any($event.target).value)">
+        <option value="">Todos</option>
+        @for (option of statusOptions; track option[0]) {
+          <option [value]="option[0]">{{ option[1] }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Origem
+      <select [value]="origin()" (change)="setOrigin($any($event.target).value)">
+        <option value="">Todas</option>
+        @for (option of originOptions; track option[0]) {
+          <option [value]="option[0]">{{ option[1] }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Cartão
+      <select [value]="creditCardId()" (change)="setCreditCardId($any($event.target).value)">
+        <option value="">Todos</option>
+        @for (card of creditCards(); track card.id) {
+          <option [value]="card.id">{{ card.displayName }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Banco
+      <select [value]="bankName()" (change)="setBankName($any($event.target).value)">
+        <option value="">Todos</option>
+        @for (bank of bankOptions(); track bank.value) {
+          <option [value]="bank.value">{{ bank.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Descrição contém
+      <input type="text" placeholder="Buscar..." [formControl]="descriptionControl" />
+    </label>
+  </div>
+  <div class="fc-filters__actions">
+    <button class="fc-button fc-button--small" (click)="search()">Pesquisar</button>
+    <button class="fc-link" (click)="clearFilters()">Limpar filtros</button>
+  </div>
+</div>
+
+@if (totals(); as totals) {
+  <div class="fc-card fc-totals">
+    <div class="fc-totals__header">
+      <h2>Totalizador</h2>
+      <div class="fc-regime-toggle" role="group" aria-label="Regime do totalizador">
+        <button type="button" [class.fc-regime-toggle__active]="regime() === 'COMPETENCIA'"
+                (click)="setRegime('COMPETENCIA')" title="Conta pela data de vencimento (comportamento padrão)">
+          Competência
+        </button>
+        <button type="button" [class.fc-regime-toggle__active]="regime() === 'CAIXA'"
+                (click)="setRegime('CAIXA')" title="Só o que já é dinheiro de verdade: contas pagas + o que o banco informou de fatura por cartão">
+          Caixa
+        </button>
+      </div>
+    </div>
+
+    <!--
+      "Total de receitas/estornos" e "Saldo líquido do filtro" foram tirados daqui (28/09, a
+      pedido do Marcio): os valores de estorno importados do cartão estão vindo grandes demais
+      pra fazer sentido (ex.: R$9.781,06 de "estorno" no C6 num mês só) e ele decidiu não usar
+      esse número por enquanto, em vez de tentar explicar algo que ainda não está confiável. O
+      cálculo continua existindo no backend (EntryTotalsDTO.totalReceita/net) sem mudança — só
+      parou de aparecer na tela — pra quando ele definir uma regra pra tratar isso direito.
+    -->
+    <div class="fc-totals__row">
+      <div class="fc-totals__item">
+        <span class="fc-muted">Total de despesas</span>
+        <strong>{{ totals.totalDespesa | currency: 'BRL' }}</strong>
+      </div>
+      <div class="fc-totals__item">
+        <span class="fc-muted">Lançamentos</span>
+        <strong>{{ totals.entryCount }}</strong>
+      </div>
+    </div>
+
+    @if (regime() === 'COMPETENCIA') {
+      <p class="fc-muted fc-totals__note">
+        Conta pela data de vencimento (fatura do cartão, ou a data do lançamento). Transferência
+        entre suas próprias contas e o débito que paga a fatura do cartão não entram nessa soma
+        (senão contariam o mesmo dinheiro duas vezes) — mas continuam na lista abaixo, marcados
+        com <span class="fc-tag fc-tag--excluded">fora do total</span>.
+      </p>
+    } @else {
+      <p class="fc-muted fc-totals__note">
+        Regime de caixa: só o que já é dinheiro de verdade — lançamentos fora de cartão já pagos
+        (pela data real de pagamento) mais o que o banco informou de pagamento/financiamento de
+        fatura por cartão. Pode não bater com as datas de vencimento da lista abaixo, que continua
+        sempre por vencimento.
+      </p>
+    }
+
+    @if ((totals.creditCardTotals ?? []).length > 0) {
+      <div class="fc-card-breakdown">
+        <p class="fc-muted" style="margin: 0 0 0.5rem;">Por cartão e por banco:</p>
+        @for (bank of (totals.creditCardTotals ?? []) | groupByBank; track bank.bankName) {
+          <div class="fc-card-breakdown__bank-group">
+            <p class="fc-card-breakdown__bank-name">{{ bank.bankName }} — {{ bank.total | currency: 'BRL' }}</p>
+            @for (card of bank.cards; track card.creditCardId) {
+              <div class="fc-card-breakdown__row">
+                <span class="fc-card-breakdown__card-name">{{ card.displayName }}</span>
+                <span class="fc-card-breakdown__amounts">
+                  <!-- "(+X estorno)" tirado daqui pelo mesmo motivo acima (28/09) -->
+                  <span>{{ card.despesa | currency: 'BRL' }}</span>
+                </span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @if (creditCardId()) {
+      @if (totals.bankSettlements.length > 0) {
+        <div class="fc-totals__bank">
+          <p class="fc-muted">
+            O banco informou o seguinte pagamento/financiamento de fatura pra esse cartão nesse
+            período (pra conferir contra o saldo líquido acima):
+          </p>
+          <ul class="fc-totals__bank-list">
+            @for (settlement of totals.bankSettlements; track settlement.transactionDate + settlement.description) {
+              <li>
+                <span>{{ settlement.description }}</span>
+                <span class="fc-muted">({{ settlement.transactionDate | date: 'dd-MM-yyyy' }}, fatura {{ settlement.cycleDueDate | date: 'dd-MM-yyyy' }})</span>
+                <strong>{{ settlement.amount | currency: 'BRL' }}</strong>
+              </li>
+            }
+          </ul>
+        </div>
+      } @else {
+        <p class="fc-muted fc-totals__bank-empty">
+          Nenhum pagamento de fatura informado pelo banco nesse período ainda (a fatura pode
+          não ter fechado/sido paga, ou o histórico sincronizado não cobre essas datas).
+        </p>
+      }
+    }
+  </div>
+}
+
 @if (selectedIds().size > 0) {
   <div class="fc-card fc-batch-bar">
     <span>{{ selectedIds().size }} selecionado(s)</span>
@@ -54,44 +218,85 @@
 }
 
 <div class="fc-card">
-  @if (loading()) {
+  @if (loadError()) {
+    <p class="fc-error">
+      {{ loadError() }}
+      <button class="fc-link" (click)="reload()">Tentar de novo</button>
+    </p>
+  } @else if (loading()) {
     <p>Carregando...</p>
   } @else if (entries().length === 0) {
-    <p>Nenhum lançamento no período.</p>
+    <p>Nenhum lançamento encontrado com esses filtros.</p>
   } @else {
-    <table class="fc-table">
-      <thead>
-        <tr>
-          <th><input type="checkbox" [checked]="allVisibleSelected()" (change)="toggleSelectAllVisible()" /></th>
-          <th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th><th>Origem</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (entry of entries(); track entry.id) {
+    <div class="fc-table-wrap">
+      <table class="fc-table">
+        <thead>
           <tr>
-            <td><input type="checkbox" [checked]="isSelected(entry)" (change)="toggleSelected(entry)" /></td>
-            <td>{{ entry.dueDate }}</td>
-            <td>
-              {{ entry.description }}
-              @if (entry.installmentNumber) {
-                <span class="fc-muted"> ({{ entry.installmentNumber }}/{{ entry.installmentsCount }})</span>
-              }
-            </td>
-            <td>{{ entry.categoryName }}</td>
-            <td [class.fc-amount--receita]="entry.type === 'RECEITA'">{{ entry.amount | currency: 'BRL' }}</td>
-            <td><span class="fc-badge fc-badge--{{ entry.status.toLowerCase() }}">{{ entry.status }}</span></td>
-            <td class="fc-muted">{{ entry.origin }}</td>
-            <td class="fc-actions">
-              @if (entry.status === 'PENDENTE') {
-                <button class="fc-link" (click)="markAsPaid(entry)">Marcar pago</button>
-              } @else if (entry.status === 'PAGO') {
-                <button class="fc-link" (click)="markAsPending(entry)">Desfazer</button>
-              }
-              <button class="fc-link fc-link--danger" (click)="remove(entry)">Excluir</button>
-            </td>
+            <th><input type="checkbox" [checked]="allVisibleSelected()" (change)="toggleSelectAllVisible()" /></th>
+            <th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Cartão</th><th>Valor</th><th>Status</th><th>Origem</th><th style="text-align: right;">Ação</th>
           </tr>
-        }
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          @for (entry of entries(); track entry.id) {
+            <tr>
+              <td><input type="checkbox" [checked]="isSelected(entry)" (change)="toggleSelected(entry)" /></td>
+              <td>{{ entry.dueDate | date: 'dd-MM-yyyy' }}</td>
+              <td>
+                {{ entry.description }}
+                @if (entry.installmentNumber) {
+                  <span class="fc-muted"> ({{ entry.installmentNumber }}/{{ entry.installmentsCount }})</span>
+                }
+                @if (entry.excludedFromTotals) {
+                  <span class="fc-tag fc-tag--excluded" title="Não entra na soma do totalizador (transferência entre suas contas ou pagamento de fatura já contado no cartão)">fora do total</span>
+                }
+              </td>
+              <td>{{ entry.categoryName }}</td>
+              <td class="fc-muted">
+                @if (entry.creditCardDisplayName) {
+                  {{ entry.creditCardDisplayName }}
+                }
+              </td>
+              <td [class.fc-amount--receita]="entry.type === 'RECEITA'">{{ entry.amount | currency: 'BRL' }}</td>
+              <td><span class="fc-badge fc-badge--{{ entry.status.toLowerCase() }}">{{ statusLabel(entry.status) }}</span></td>
+              <td class="fc-muted">{{ originLabel(entry.origin) }}</td>
+              <td class="fc-actions-cell">
+                <button
+                  class="fc-actions-trigger"
+                  type="button"
+                  title="Ações"
+                  aria-label="Ações"
+                  (click)="toggleActionsMenu(entry.id, $event)"
+                >
+                  &#8942;
+                </button>
+                @if (openActionsMenuId() === entry.id) {
+                  <div class="fc-actions-menu" (click)="$event.stopPropagation()">
+                    @if (entry.status === 'PENDENTE') {
+                      <button class="fc-link" (click)="markAsPaid(entry)">Marcar pago</button>
+                    } @else if (entry.status === 'PAGO') {
+                      <button class="fc-link" (click)="markAsPending(entry)">Desfazer</button>
+                    }
+                    @if (entry.excludedFromTotals) {
+                      <button class="fc-link" (click)="toggleExcludedFromTotals(entry)" title="Voltar a contar esse lançamento no totalizador">Incluir no total</button>
+                    } @else {
+                      <button class="fc-link" (click)="toggleExcludedFromTotals(entry)" title="Tirar esse lançamento da soma do totalizador (ex.: empréstimo/repasse entre pessoas que não é gasto ou receita real)">Excluir do total</button>
+                    }
+                    <button class="fc-link fc-link--danger" (click)="remove(entry)">Excluir</button>
+                  </div>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages() > 1) {
+      <div class="fc-pagination">
+        <button class="fc-link" [disabled]="page() === 0" (click)="goToPage(page() - 1)">&laquo; Anterior</button>
+        <span class="fc-muted">Página {{ page() + 1 }} de {{ totalPages() }} — {{ totalElements() }} lançamento(s)</span>
+        <button class="fc-link" [disabled]="page() + 1 >= totalPages()" (click)="goToPage(page() + 1)">Próxima &raquo;</button>
+      </div>
+    }
   }
 </div>

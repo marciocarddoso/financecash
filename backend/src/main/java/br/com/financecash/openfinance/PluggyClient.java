@@ -204,12 +204,19 @@ public class PluggyClient {
             return response.results().stream()
                     .map(t -> new TransactionInfo(t.id(), t.description(), t.amount(),
                             t.date() != null ? t.date().atZone(ZoneOffset.UTC).toLocalDate() : null,
-                            t.type(), t.status(), t.category()))
+                            t.type(), t.status(), t.category(), toCreditCardMetadataInfo(t.creditCardMetadata())))
                     .toList();
         } catch (RestClientException ex) {
             log.error("Falha ao listar transações da conta {} na Pluggy: {}", accountId, ex.getMessage(), ex);
             throw new BusinessException("Não foi possível consultar as transações dessa conta na Pluggy. Tente novamente em instantes.");
         }
+    }
+
+    private CreditCardMetadataInfo toCreditCardMetadataInfo(PluggyCreditCardMetadataApiResponse metadata) {
+        if (metadata == null) {
+            return null;
+        }
+        return new CreditCardMetadataInfo(metadata.installmentNumber(), metadata.totalInstallments(), metadata.purchaseDate());
     }
 
     private CreditDataInfo toCreditDataInfo(PluggyCreditDataApiResponse creditData) {
@@ -292,7 +299,18 @@ public class PluggyClient {
      */
     public record TransactionInfo(
             String id, String description, BigDecimal amount, LocalDate date,
-            String type, String status, String category) {
+            String type, String status, String category, CreditCardMetadataInfo creditCardMetadata) {
+    }
+
+    /**
+     * Metadados extras de uma transação de cartão de crédito — usado pelo
+     * TransactionImportService pra detectar compras parceladas (totalInstallments &gt; 1).
+     * Confirmado só contra a documentação (docs.pluggy.ai/docs/transactions), ainda não contra
+     * dado real do MeuPluggy: {@code totalAmount} (soma de todas as parcelas) é documentado como
+     * indisponível em conectores Open Finance como o do Marcio, por isso nem foi mapeado aqui —
+     * só os campos que a doc não restringe por tipo de conector.
+     */
+    public record CreditCardMetadataInfo(Integer installmentNumber, Integer totalInstallments, LocalDate purchaseDate) {
     }
 
     private record PluggyTransactionsApiResponse(List<PluggyTransactionApiResponse> results) {
@@ -300,7 +318,11 @@ public class PluggyClient {
 
     private record PluggyTransactionApiResponse(
             String id, String description, BigDecimal amount, Instant date,
-            String type, String status, String category) {
+            String type, String status, String category, PluggyCreditCardMetadataApiResponse creditCardMetadata) {
+    }
+
+    private record PluggyCreditCardMetadataApiResponse(
+            Integer installmentNumber, Integer totalInstallments, LocalDate purchaseDate) {
     }
 
     private record PluggyAccountsApiResponse(List<PluggyAccountApiResponse> results) {

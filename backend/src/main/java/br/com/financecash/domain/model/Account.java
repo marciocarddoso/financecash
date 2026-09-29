@@ -44,4 +44,13 @@ public class Account {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * true = conta veio da sincronizacao Open Finance (Pluggy), so leitura pro usuario
+     * (nome/banco/tipo/saldo controlados pelo sync; so o active pode ser alterado por ele).
+     * false = conta criada manualmente, com CRUD completo liberado.
+     */
+    @Column(name = "synced_from_open_finance", nullable = false)
+    @Builder.Default
+    private boolean syncedFromOpenFinance = true;
 }

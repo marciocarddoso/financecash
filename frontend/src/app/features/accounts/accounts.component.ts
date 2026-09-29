@@ -11,8 +11,11 @@ import { Account } from '../../core/models/account.model';
   template: `
     <h1>Contas &amp; Saldos</h1>
     <p class="fc-hint">
-      Cadastre suas contas (bancos e aplicações em CDI) e registre o saldo real sempre que conferir o extrato —
-      o dashboard usa o último saldo informado de cada conta para consolidar sua posição financeira.
+      Contas sincronizadas via Open Finance são atualizadas automaticamente a cada sincronização —
+      nome, banco, tipo e saldo vêm direto do banco, e o único controle que você tem sobre elas
+      aqui é ativar/desativar. Cadastre uma conta manual abaixo para os casos que a Pluggy não
+      cobre (ex.: uma aplicação específica) — nessas você edita nome/banco/tipo e registra o
+      saldo você mesmo.
     </p>
 
     <form class="fc-card fc-inline-form" [formGroup]="form" (ngSubmit)="submit()">
@@ -23,7 +26,7 @@ import { Account } from '../../core/models/account.model';
         <option value="POUPANCA">Poupança</option>
         <option value="INVESTIMENTO">Investimento</option>
       </select>
-      <button class="fc-button" type="submit" [disabled]="form.invalid">Adicionar conta</button>
+      <button class="fc-button" type="submit" [disabled]="form.invalid">Adicionar conta manual</button>
     </form>
 
     <div class="fc-card">
@@ -31,10 +34,19 @@ import { Account } from '../../core/models/account.model';
         <p>Nenhuma conta cadastrada ainda.</p>
       } @else {
         <table class="fc-table">
-          <thead><tr><th>Nome</th><th>Banco</th><th>Tipo</th><th>Último saldo</th><th>Atualizar saldo</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Banco</th>
+              <th>Tipo</th>
+              <th>Origem</th>
+              <th>Último saldo</th>
+              <th style="text-align: right;">Ação</th>
+            </tr>
+          </thead>
           <tbody>
             @for (account of accounts(); track account.id) {
-              <tr>
+              <tr [class.fc-row--inactive]="!account.active">
                 @if (editingId() === account.id) {
                   <td><input type="text" [formControl]="editForm.controls.name" /></td>
                   <td><input type="text" [formControl]="editForm.controls.bankName" /></td>
@@ -45,10 +57,11 @@ import { Account } from '../../core/models/account.model';
                       <option value="INVESTIMENTO">Investimento</option>
                     </select>
                   </td>
+                  <td><span class="fc-badge fc-badge--manual">Manual</span></td>
                   <td>
                     {{ account.latestBalance !== null ? (account.latestBalance | currency: 'BRL') : '—' }}
                     @if (account.latestBalanceDate) {
-                      <span class="fc-hint"> ({{ account.latestBalanceDate }})</span>
+                      <span class="fc-hint"> ({{ account.latestBalanceDate | date: 'dd-MM-yyyy' }})</span>
                     }
                   </td>
                   <td>
@@ -56,20 +69,33 @@ import { Account } from '../../core/models/account.model';
                     <button class="fc-link" (click)="cancelEdit()">Cancelar</button>
                   </td>
                 } @else {
-                  <td>{{ account.name }}</td>
+                  <td>{{ account.name }}@if (!account.active) {<span class="fc-hint"> (inativa)</span>}</td>
                   <td>{{ account.bankName }}</td>
                   <td>{{ account.type }}</td>
                   <td>
-                    {{ account.latestBalance !== null ? (account.latestBalance | currency: 'BRL') : '—' }}
-                    @if (account.latestBalanceDate) {
-                      <span class="fc-hint"> ({{ account.latestBalanceDate }})</span>
+                    @if (account.syncedFromOpenFinance) {
+                      <span class="fc-badge fc-badge--synced">Sincronizada</span>
+                    } @else {
+                      <span class="fc-badge fc-badge--manual">Manual</span>
                     }
                   </td>
                   <td>
-                    <input type="number" step="0.01" placeholder="Novo saldo" [(ngModel)]="newBalances[account.id]" [ngModelOptions]="{standalone: true}" />
-                    <button class="fc-link" (click)="registerBalance(account)">Salvar</button>
-                    <button class="fc-link" (click)="startEdit(account)">Editar</button>
-                    <button class="fc-link fc-link--danger" (click)="remove(account)">Remover</button>
+                    {{ account.latestBalance !== null ? (account.latestBalance | currency: 'BRL') : '—' }}
+                    @if (account.latestBalanceDate) {
+                      <span class="fc-hint"> ({{ account.latestBalanceDate | date: 'dd-MM-yyyy' }})</span>
+                    }
+                  </td>
+                  <td>
+                    @if (!account.syncedFromOpenFinance) {
+                      <input type="number" step="0.01" placeholder="Novo saldo" [(ngModel)]="newBalances[account.id]" [ngModelOptions]="{standalone: true}" />
+                      <button class="fc-link" (click)="registerBalance(account)">Salvar</button>
+                      <button class="fc-link" (click)="startEdit(account)">Editar</button>
+                    }
+                    @if (account.active) {
+                      <button class="fc-link fc-link--danger" (click)="deactivate(account)">Desativar</button>
+                    } @else {
+                      <button class="fc-link" (click)="activate(account)">Reativar</button>
+                    }
                   </td>
                 }
               </tr>
@@ -87,6 +113,10 @@ import { Account } from '../../core/models/account.model';
     td input[type="number"] { width: 110px; padding: 0.3rem 0.5rem; border: 1px solid var(--fc-color-border); border-radius: 6px; margin-right: 0.5rem; }
     .fc-link { background: none; border: none; color: var(--fc-color-primary); cursor: pointer; }
     .fc-link--danger { color: var(--fc-color-danger); }
+    .fc-row--inactive { opacity: 0.55; }
+    .fc-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.78rem; }
+    .fc-badge--synced { background: var(--fc-color-primary-soft, #e6effe); color: var(--fc-color-primary); }
+    .fc-badge--manual { background: var(--fc-color-border); color: var(--fc-color-text-muted); }
   `],
 })
 export class AccountsComponent implements OnInit {
@@ -107,7 +137,7 @@ export class AccountsComponent implements OnInit {
   }
 
   reload(): void {
-    this.accountService.list().subscribe((accounts) => this.accounts.set(accounts));
+    this.accountService.list(true).subscribe((accounts) => this.accounts.set(accounts));
   }
 
   submit(): void {
@@ -155,8 +185,17 @@ export class AccountsComponent implements OnInit {
     });
   }
 
-  /** Desativa (soft delete) a conta — usado quando ela ficou obsoleta, ex.: substituída por uma conta sincronizada via Open Finance. */
-  remove(account: Account): void {
+  /**
+   * Desativa (soft delete) a conta. Pra conta sincronizada via Open Finance, é o único controle
+   * disponível na tela (28/09, sétima rodada) — desativar faz o AccountSyncService ignorar essa
+   * conta pra sempre a partir da próxima sincronização, até o usuário reativar manualmente.
+   */
+  deactivate(account: Account): void {
     this.accountService.deactivate(account.id).subscribe(() => this.reload());
+  }
+
+  /** Reativa uma conta desativada — volta a aparecer pro sync (se sincronizada) e some o "(inativa)" da tela. */
+  activate(account: Account): void {
+    this.accountService.activate(account.id).subscribe(() => this.reload());
   }
 }

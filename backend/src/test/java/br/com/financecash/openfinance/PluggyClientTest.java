@@ -128,6 +128,7 @@ class PluggyClientTest {
         // Achado em produção: o endpoint antigo GET /transactions está desativado (410 Gone,
         // ENDPOINT_DEPRECATED) — a Pluggy orienta usar GET /v2/transactions, com dateFrom/dateTo
         // no lugar de from/to. Esse teste trava a URL e os parâmetros certos pra não regredir.
+        // Também confirma o parsing de creditCardMetadata (usado pra detectar parcelamento).
         PluggyClient client = clientWith("meu-client-id", "meu-client-secret");
 
         mockServer.expect(requestTo(BASE_URL + "/auth"))
@@ -137,7 +138,8 @@ class PluggyClientTest {
                 .andRespond(withSuccess(
                         "{\"results\":[{\"id\":\"tx-1\",\"description\":\"Uber\",\"amount\":-35.90,"
                                 + "\"date\":\"2026-09-14T10:00:00.000Z\",\"type\":\"DEBIT\",\"status\":\"POSTED\","
-                                + "\"category\":null}],\"next\":null}",
+                                + "\"category\":null,\"creditCardMetadata\":{\"installmentNumber\":3,"
+                                + "\"totalInstallments\":12,\"purchaseDate\":\"2026-07-14\"}}],\"next\":null}",
                         MediaType.APPLICATION_JSON));
 
         List<PluggyClient.TransactionInfo> transactions = client.listTransactions(
@@ -150,6 +152,10 @@ class PluggyClientTest {
         assertThat(tx.amount()).isEqualByComparingTo("-35.90");
         assertThat(tx.date()).isEqualTo(LocalDate.of(2026, 9, 14));
         assertThat(tx.status()).isEqualTo("POSTED");
+        assertThat(tx.creditCardMetadata()).isNotNull();
+        assertThat(tx.creditCardMetadata().installmentNumber()).isEqualTo(3);
+        assertThat(tx.creditCardMetadata().totalInstallments()).isEqualTo(12);
+        assertThat(tx.creditCardMetadata().purchaseDate()).isEqualTo(LocalDate.of(2026, 7, 14));
         mockServer.verify();
     }
 

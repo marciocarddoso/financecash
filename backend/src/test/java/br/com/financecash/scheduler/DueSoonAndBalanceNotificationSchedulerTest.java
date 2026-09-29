@@ -51,7 +51,8 @@ class DueSoonAndBalanceNotificationSchedulerTest {
 
     private DashboardResponse dashboardWithProjection(BigDecimal projected) {
         return new DashboardResponse(LocalDate.now(), List.of(), List.of(),
-                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, projected);
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, projected);
     }
 
     @Test

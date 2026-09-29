@@ -7,6 +7,10 @@ export interface Account {
   type: AccountType;
   investmentDescription: string | null;
   active: boolean;
+  /** true = conta trazida pela sincronização Open Finance (Pluggy) — nome/banco/tipo/saldo
+   * controlados pelo sync, só o active pode ser alterado pelo usuário. false = conta manual,
+   * com CRUD completo. */
+  syncedFromOpenFinance: boolean;
   latestBalance: number | null;
   latestBalanceDate: string | null;
 }

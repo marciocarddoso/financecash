@@ -51,8 +51,8 @@ import { BankAccountInfo, BankConnection } from '../../core/models/bank-connecti
               <tr>
                 <td>{{ connection.bankName }}</td>
                 <td><span class="fc-status" [class]="'fc-status--' + connection.status.toLowerCase()">{{ statusLabel(connection.status) }}</span></td>
-                <td>{{ connection.connectedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
-                <td>{{ connection.lastSyncAt ? (connection.lastSyncAt | date: 'dd/MM/yyyy HH:mm') : 'ainda não sincronizado' }}</td>
+                <td>{{ connection.connectedAt | date: 'dd-MM-yyyy HH:mm' }}</td>
+                <td>{{ connection.lastSyncAt ? (connection.lastSyncAt | date: 'dd-MM-yyyy HH:mm') : 'ainda não sincronizado' }}</td>
                 <td>
                   <button class="fc-link" (click)="toggleAccounts(connection)">
                     {{ isExpanded(connection.id) ? 'Ocultar contas' : 'Ver contas' }}
@@ -188,6 +188,9 @@ export class OpenFinanceComponent implements OnInit {
         }
         if (result.creditCardsSkipped > 0) {
           message += ` ${result.creditCardsSkipped} cartão(ões) não deu(ram) pra sincronizar (faltou dado da Pluggy).`;
+        }
+        if (result.accountsSkipped > 0) {
+          message += ` ${result.accountsSkipped} conta(s) desativada(s) foram ignoradas (reative em Contas & Saldos se quiser voltar a sincronizar).`;
         }
         this.syncMessageByConnection.set({ ...this.syncMessageByConnection(), [connection.id]: message });
 

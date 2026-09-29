@@ -60,7 +60,7 @@
         <select formControlName="creditCardId">
           <option value="">—</option>
           @for (card of creditCards(); track card.id) {
-            <option [value]="card.id">{{ card.name }}</option>
+            <option [value]="card.id">{{ card.displayName }}</option>
           }
         </select>
       </label>
@@ -85,7 +85,7 @@
             <td>{{ plan.categoryName }}</td>
             <td>{{ plan.totalAmount | currency: 'BRL' }}</td>
             <td>{{ plan.installmentsCount }}x</td>
-            <td>{{ plan.firstDueDate }}</td>
+            <td>{{ plan.firstDueDate | date: 'dd-MM-yyyy' }}</td>
           </tr>
         }
       </tbody>

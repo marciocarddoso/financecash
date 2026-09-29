@@ -31,3 +31,6 @@ Thumbs.db
 
 # ---- Logs ----
 *.log
+
+# ---- Scratch/temp — nunca comitar dados financeiros reais aqui ----
+_scratch/

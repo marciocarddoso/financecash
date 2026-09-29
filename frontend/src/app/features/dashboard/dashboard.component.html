@@ -15,8 +15,27 @@
       <span class="fc-summary-value">{{ d.totalPendingToday | currency: 'BRL' }}</span>
     </div>
     <div class="fc-card">
-      <span class="fc-summary-label">A pagar no mês</span>
+      <span class="fc-summary-label">Falta pagar no mês</span>
       <span class="fc-summary-value">{{ d.totalPendingMonth | currency: 'BRL' }}</span>
+    </div>
+    <div class="fc-card">
+      <span class="fc-summary-label">Já pago no mês</span>
+      <span class="fc-summary-value">{{ d.totalPaidMonth | currency: 'BRL' }}</span>
+    </div>
+    <div class="fc-card">
+      <span class="fc-summary-label">Total de contas do mês</span>
+      <span class="fc-summary-value">{{ d.totalExpensesMonth | currency: 'BRL' }}</span>
+    </div>
+  </div>
+
+  <div class="fc-summary-grid">
+    <div class="fc-card">
+      <span class="fc-summary-label">Recebido no mês</span>
+      <span class="fc-summary-value">{{ d.totalIncomePaidMonth | currency: 'BRL' }}</span>
+    </div>
+    <div class="fc-card">
+      <span class="fc-summary-label">Previsto a receber no mês</span>
+      <span class="fc-summary-value">{{ d.totalIncomePendingMonth | currency: 'BRL' }}</span>
     </div>
     <div class="fc-card">
       <span class="fc-summary-label">Saldo consolidado (bancos)</span>
@@ -27,9 +46,53 @@
       <span class="fc-summary-value">{{ d.projectedBalanceEndOfMonth | currency: 'BRL' }}</span>
     </div>
   </div>
+  <p class="fc-muted fc-dashboard-hint">
+    Saldo projetado = saldo consolidado + previsto a receber − falta pagar no mês. O que já foi
+    pago ou recebido não entra de novo aqui, porque já está contado no saldo consolidado.
+  </p>
+
+  @if (pendingInvoiceConfirmations().length > 0) {
+    <section class="fc-card fc-card--warning">
+      <h2>Faturas pra confirmar</h2>
+      <p class="fc-muted">
+        Essas faturas de cartão já venceram e o FinanceCash ainda não sabe se foram pagas — ele
+        não marca sozinho pra não esconder uma fatura realmente em aberto. Confirma as que você
+        já pagou.
+      </p>
+      <table class="fc-table">
+        <thead>
+          <tr><th>Cartão</th><th>Vencimento</th><th>Lançamentos</th><th>Total</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (confirmation of pendingInvoiceConfirmations(); track invoiceKey(confirmation)) {
+            <tr>
+              <td>{{ confirmation.creditCardDisplayName }}</td>
+              <td>{{ confirmation.dueDate | date: 'dd-MM-yyyy' }}</td>
+              <td>{{ confirmation.entryCount }}</td>
+              <td>{{ confirmation.totalAmount | currency: 'BRL' }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="fc-button"
+                  [disabled]="confirmingInvoiceKey() === invoiceKey(confirmation)"
+                  (click)="confirmInvoicePaid(confirmation)"
+                >
+                  @if (confirmingInvoiceKey() === invoiceKey(confirmation)) {
+                    Confirmando...
+                  } @else {
+                    Já foi paga
+                  }
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
 
   <section class="fc-card">
-    <h2>Contas de hoje ({{ d.referenceDate }})</h2>
+    <h2>Contas de hoje ({{ d.referenceDate | date: 'dd-MM-yyyy' }})</h2>
     @if (d.dueToday.length === 0) {
       <p>Nenhum lançamento com vencimento hoje. 🎉</p>
     } @else {
@@ -62,7 +125,7 @@
           @for (entry of d.overdue; track entry.id) {
             <tr>
               <td>{{ entry.description }}</td>
-              <td>{{ entry.dueDate }}</td>
+              <td>{{ entry.dueDate | date: 'dd-MM-yyyy' }}</td>
               <td>{{ entry.amount | currency: 'BRL' }}</td>
             </tr>
           }

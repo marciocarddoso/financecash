@@ -41,9 +41,65 @@
   font-weight: 600;
 }
 
-.fc-actions {
+/**
+ * Coluna de ações da tabela (sexta rodada): era 3 links lado a lado (Marcar pago/Excluir do
+ * total/Excluir) que quebravam o layout em telas mais estreitas — virou um botão "⋮" com um
+ * menu suspenso, sempre do mesmo tamanho independente de quantas ações a linha tem.
+ */
+.fc-actions-cell {
+  position: relative;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fc-actions-trigger {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--fc-color-text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.3rem 0.6rem;
+
+  &:hover {
+    background: var(--fc-color-bg);
+    border-color: var(--fc-color-border);
+  }
+}
+
+.fc-actions-menu {
+  position: absolute;
+  right: 0.5rem;
+  top: 100%;
+  z-index: 10;
   display: flex;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.15rem;
+  min-width: 170px;
+  padding: 0.4rem;
+  background: var(--fc-color-surface, #fff);
+  border: 1px solid var(--fc-color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  .fc-link {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    white-space: nowrap;
+
+    &:hover {
+      background: var(--fc-color-bg);
+    }
+  }
+}
+
+/** A tabela pode ficar mais larga que o card em telas estreitas — rola por dentro em vez de
+ *  estourar a largura da página (parte do "layout quebrado" relatado pelo Marcio). */
+.fc-table-wrap {
+  overflow-x: auto;
 }
 
 .fc-link {
@@ -53,6 +109,7 @@
   cursor: pointer;
   font-size: 0.85rem;
   padding: 0;
+  white-space: nowrap;
 
   &--danger {
     color: var(--fc-color-danger);
@@ -75,4 +132,209 @@
 .fc-button--danger {
   background: var(--fc-color-danger);
   border-color: var(--fc-color-danger);
+}
+
+.fc-filters {
+  margin-bottom: 1.25rem;
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.85rem;
+      color: var(--fc-color-text-muted);
+      min-width: 150px;
+
+      input, select {
+        padding: 0.45rem 0.6rem;
+        border: 1px solid var(--fc-color-border);
+        border-radius: 6px;
+        font-size: 0.95rem;
+      }
+    }
+  }
+}
+
+.fc-filters__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.fc-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--fc-color-border);
+}
+
+.fc-totals {
+  margin-bottom: 1.25rem;
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+
+    strong {
+      font-size: 1.1rem;
+    }
+  }
+
+  &__bank {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--fc-color-border);
+  }
+
+  &__bank-list {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
+    li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+  }
+
+  &__bank-empty {
+    margin-top: 0.75rem;
+  }
+}
+
+.fc-totals__note {
+  margin-top: 0.75rem;
+}
+
+.fc-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  vertical-align: middle;
+
+  &--excluded {
+    background: var(--fc-color-surface-muted, #f0f0f0);
+    color: var(--fc-color-text-muted);
+    border: 1px solid var(--fc-color-border);
+  }
+}
+
+/**
+ * Toggle de regime (competência/caixa) — 01/10, quinta rodada. Fica junto do header do
+ * totalizador, dois botões simples em vez de um select, pra ficar claro que é um modo de
+ * visualização (não mais um filtro que estreita o resultado).
+ */
+.fc-regime-toggle {
+  display: inline-flex;
+  border: 1px solid var(--fc-color-border);
+  border-radius: 8px;
+  overflow: hidden;
+
+  button {
+    background: var(--fc-color-surface, #fff);
+    border: none;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--fc-color-text-muted);
+
+    &:not(:last-child) {
+      border-right: 1px solid var(--fc-color-border);
+    }
+
+    &.fc-regime-toggle__active {
+      background: var(--fc-color-primary);
+      color: #fff;
+      font-weight: 600;
+    }
+  }
+}
+
+.fc-totals__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+}
+
+/** Quebra por cartão/banco do totalizador (01/10, quinta rodada: "quero ver o totalizador por cartão e por banco"). */
+.fc-card-breakdown {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--fc-color-border);
+
+  &__bank-group {
+    margin-bottom: 0.6rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__bank-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin: 0 0 0.3rem;
+  }
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.25rem 0;
+    padding-left: 0.75rem;
+
+    &:not(:last-child) {
+      border-bottom: 1px dashed var(--fc-color-border);
+    }
+  }
+
+  &__card-name {
+    color: var(--fc-color-text-muted);
+  }
+
+  &__amounts {
+    display: flex;
+    gap: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.fc-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--fc-color-danger, #c0392b);
 }

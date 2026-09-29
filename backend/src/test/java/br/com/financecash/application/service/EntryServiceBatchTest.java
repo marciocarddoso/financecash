@@ -8,6 +8,7 @@ import br.com.financecash.domain.repository.AccountRepository;
 import br.com.financecash.domain.repository.CategoryRepository;
 import br.com.financecash.domain.repository.CreditCardRepository;
 import br.com.financecash.domain.repository.EntryRepository;
+import br.com.financecash.domain.repository.InvoiceSettlementRepository;
 import br.com.financecash.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,8 @@ class EntryServiceBatchTest {
     @Mock
     private CreditCardRepository creditCardRepository;
     @Mock
+    private InvoiceSettlementRepository invoiceSettlementRepository;
+    @Mock
     private CurrentUserProvider currentUserProvider;
 
     private EntryService service;
@@ -45,7 +48,8 @@ class EntryServiceBatchTest {
 
     @BeforeEach
     void setUp() {
-        service = new EntryService(entryRepository, categoryRepository, accountRepository, creditCardRepository, currentUserProvider);
+        service = new EntryService(entryRepository, categoryRepository, accountRepository, creditCardRepository,
+                invoiceSettlementRepository, currentUserProvider);
         user = AppUser.builder().id(UUID.randomUUID()).build();
         otherUser = AppUser.builder().id(UUID.randomUUID()).build();
         when(currentUserProvider.getCurrentUser()).thenReturn(user);

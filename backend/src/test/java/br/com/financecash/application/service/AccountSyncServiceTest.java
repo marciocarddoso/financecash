@@ -21,7 +21,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,8 +54,13 @@ class AccountSyncServiceTest {
     private TransactionImportService transactionImportService;
 
     private AccountSyncService service() {
+        return service(365);
+    }
+
+    private AccountSyncService service(int transactionLookbackDays) {
         return new AccountSyncService(accountRepository, balanceSnapshotRepository, bankConnectionRepository,
-                creditCardRepository, pluggyClient, currentUserProvider, transactionImportService);
+                creditCardRepository, pluggyClient, currentUserProvider, transactionImportService,
+                transactionLookbackDays);
     }
 
     private AppUser user() {
@@ -168,6 +175,9 @@ class AccountSyncServiceTest {
         assertThat(saved.getClosingDay()).isEqualTo(10);
         assertThat(saved.getDueDay()).isEqualTo(20);
         assertThat(saved.getName()).contains("MASTERCARD");
+        // Guardado separado desde a migration V7 (01/10, quinta rodada) — permite montar um
+        // nome curto de exibição ("C6 Mastercard") sem reprocessar CreditCard.name.
+        assertThat(saved.getBrand()).isEqualTo("MASTERCARD");
     }
 
     @Test
@@ -200,6 +210,9 @@ class AccountSyncServiceTest {
         assertThat(result.creditCardsUpdated()).isEqualTo(1);
         assertThat(existing.getClosingDay()).isEqualTo(7);
         assertThat(existing.getDueDay()).isEqualTo(14);
+        // Cartão sincronizado antes da migration V7 nasce com brand null — o próximo sync
+        // preenche, mesmo em update (01/10, quinta rodada).
+        assertThat(existing.getBrand()).isEqualTo("VISA");
     }
 
     @Test
@@ -349,6 +362,80 @@ class AccountSyncServiceTest {
         SyncResultDTO result = service().syncConnection(connection.getId());
 
         assertThat(result.entriesImported()).isEqualTo(5);
+    }
+
+    @Test
+    void deveBuscarTransacoesSempreNaJanelaConfiguradaMesmoComSyncRecenteAnterior() {
+        // Achado em produção (29/09): a janela de busca de transações não pode encolher com
+        // base no lastSyncAt anterior — esse campo já vinha sendo preenchido desde antes do
+        // TransactionImportService existir, então a janela nunca chegava a olhar pra trás o
+        // suficiente pra pegar compras de cartão fora dos últimos dias. Trava que a janela é
+        // sempre fixa (não encolhe), independente de quão recente foi o último sync.
+        //
+        // Usa um valor de lookback diferente do default (200, não 365) de propósito, pra provar
+        // que a janela realmente vem da configuração (financecash.pluggy.sync-window-days, ver
+        // AccountSyncService) e não de uma constante fixa — 120 dias era hardcoded antes, agora
+        // é 365 por padrão mas configurável (1/10, a pedido do Marcio, pra dar mais histórico —
+        // ver docs/ROADMAP.md).
+        AppUser user = user();
+        BankConnection connection = connection(user);
+        connection.setLastSyncAt(Instant.now().minus(1, ChronoUnit.HOURS));
+
+        when(currentUserProvider.getCurrentUser()).thenReturn(user);
+        when(bankConnectionRepository.findById(connection.getId())).thenReturn(Optional.of(connection));
+        when(pluggyClient.listAccounts("item-1")).thenReturn(List.of(
+                bankAccount("acc-1", "CHECKING_ACCOUNT", "00074387-7", "Itaú", new BigDecimal("100.00"))
+        ));
+        when(accountRepository.findByOwnerIdAndBankNameIgnoreCaseAndType(user.getId(), "Itaú", AccountType.CORRENTE))
+                .thenReturn(Optional.empty());
+        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
+            Account a = invocation.getArgument(0);
+            a.setId(UUID.randomUUID());
+            return a;
+        });
+        when(balanceSnapshotRepository.findByAccountIdAndReferenceDate(any(), any())).thenReturn(Optional.empty());
+
+        service(200).syncConnection(connection.getId());
+
+        var fromCaptor = org.mockito.ArgumentCaptor.forClass(LocalDate.class);
+        var toCaptor = org.mockito.ArgumentCaptor.forClass(LocalDate.class);
+        verify(transactionImportService).importForAccount(
+                org.mockito.ArgumentMatchers.eq(user), any(), org.mockito.ArgumentMatchers.eq("acc-1"),
+                fromCaptor.capture(), toCaptor.capture());
+        assertThat(toCaptor.getValue()).isEqualTo(LocalDate.now());
+        assertThat(fromCaptor.getValue()).isEqualTo(LocalDate.now().minusDays(200));
+    }
+
+    @Test
+    void deveIgnorarContaDesativadaSemReativarOuAtualizarSaldo() {
+        // Achado real (28/09, relatado pelo Marcio): ele desativou a conta 99Pay e sincronizou
+        // de novo esperando que ela reaparecesse em Contas & Saldos, mas continuou sumida, com
+        // o saldo antigo ainda visível em Lançamentos — a busca por banco+tipo não filtrava por
+        // active, então achava e atualizava a conta desativada por baixo dos panos pra sempre.
+        // Trava agora: uma vez desativada, o sync nunca mais toca na conta.
+        AppUser user = user();
+        BankConnection connection = connection(user);
+        Account inactive = Account.builder().id(UUID.randomUUID()).owner(user).name("99Pay")
+                .bankName("99Pay").type(AccountType.CORRENTE).active(false).build();
+
+        when(currentUserProvider.getCurrentUser()).thenReturn(user);
+        when(bankConnectionRepository.findById(connection.getId())).thenReturn(Optional.of(connection));
+        when(pluggyClient.listAccounts("item-1")).thenReturn(List.of(
+                bankAccount("acc-1", "CHECKING_ACCOUNT", "00074387-7", "99Pay", new BigDecimal("999.99"))
+        ));
+        when(accountRepository.findByOwnerIdAndBankNameIgnoreCaseAndType(user.getId(), "99Pay", AccountType.CORRENTE))
+                .thenReturn(Optional.of(inactive));
+
+        SyncResultDTO result = service().syncConnection(connection.getId());
+
+        assertThat(result.accountsCreated()).isZero();
+        assertThat(result.accountsUpdated()).isZero();
+        assertThat(result.accountsSkipped()).isEqualTo(1);
+        assertThat(inactive.isActive()).isFalse();
+        verify(balanceSnapshotRepository, org.mockito.Mockito.never())
+                .save(org.mockito.ArgumentMatchers.any());
+        verify(transactionImportService, org.mockito.Mockito.never())
+                .importForAccount(any(), any(), any(), any(), any());
     }
 
     @Test

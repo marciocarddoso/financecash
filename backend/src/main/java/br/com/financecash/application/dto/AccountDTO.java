@@ -14,12 +14,14 @@ public record AccountDTO(
         AccountType type,
         String investmentDescription,
         boolean active,
+        boolean syncedFromOpenFinance,
         BigDecimal latestBalance,
         LocalDate latestBalanceDate
 ) {
     public static AccountDTO from(Account account, BigDecimal latestBalance, LocalDate latestBalanceDate) {
         return new AccountDTO(
                 account.getId(), account.getName(), account.getBankName(), account.getType(),
-                account.getInvestmentDescription(), account.isActive(), latestBalance, latestBalanceDate);
+                account.getInvestmentDescription(), account.isActive(), account.isSyncedFromOpenFinance(),
+                latestBalance, latestBalanceDate);
     }
 }

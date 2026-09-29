@@ -8,6 +8,8 @@
   --fc-color-text: #1f2933;
   --fc-color-text-muted: #62717c;
   --fc-color-border: #e2e8ef;
+  --fc-color-row-alt: #f7f9fb;
+  --fc-color-row-hover: #eef2f5;
   --fc-radius: 8px;
 }
 
@@ -73,6 +75,19 @@ a {
     font-weight: 600;
     font-size: 0.85rem;
     text-transform: uppercase;
+  }
+
+  // Linhas com fundo levemente alternado (zebra striping) — padrão comum em sistemas
+  // profissionais pra facilitar acompanhar uma linha horizontalmente numa tabela densa
+  // (28/09, oitava rodada, a pedido do Marcio). Sutil de propósito: só uma leve mudança de
+  // tom, não uma cor chamativa. Hover reforça qual linha o mouse está sobre, sem depender só
+  // da cor de fundo (ajuda quem tem dificuldade de perceber contraste).
+  tbody tr:nth-child(even) {
+    background: var(--fc-color-row-alt);
+  }
+
+  tbody tr:hover {
+    background: var(--fc-color-row-hover);
   }
 }
 

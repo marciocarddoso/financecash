@@ -57,6 +57,11 @@ financecash:
     base-url: ${PLUGGY_BASE_URL:https://api.pluggy.ai}
     client-id: ${PLUGGY_CLIENT_ID:}
     client-secret: ${PLUGGY_CLIENT_SECRET:}
+    # Quantos dias pra trás toda sincronização busca transações (ver AccountSyncService,
+    # javadoc de transactionLookbackDays). 365 = 12 meses (1/10, a pedido do Marcio — com 120
+    # dias não dava pra ver o histórico de itens anuais nem confirmar parcelamentos antigos
+    # contra a planilha). Ainda uma configuração global do servidor, não por usuário.
+    sync-window-days: ${PLUGGY_SYNC_WINDOW_DAYS:365}
 
 springdoc:
   swagger-ui:

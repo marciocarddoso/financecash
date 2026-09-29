@@ -74,13 +74,37 @@ public class Entry {
     @JoinColumn(name = "installment_plan_id")
     private InstallmentPlan installmentPlan;
 
-    /** Número da parcela (ex.: 3 de 12), preenchido quando installmentPlan != null. */
+    /**
+     * Número da parcela (ex.: 3 de 12) — preenchido tanto pelo parcelamento manual
+     * (installmentPlan != null) quanto pela importação de compras parceladas via Open
+     * Finance (installmentPlan == null, ver installmentsCount abaixo).
+     */
     @Column(name = "installment_number")
     private Integer installmentNumber;
+
+    /**
+     * Total de parcelas, usado só quando installmentPlan é null — ou seja, para compras
+     * parceladas importadas da Pluggy, que não geram um InstallmentPlan (ver
+     * TransactionImportService.importForCreditCard). Quando installmentPlan != null, o total
+     * "oficial" é installmentPlan.getInstallmentsCount(); ver EntryDTO.from().
+     */
+    @Column(name = "installments_count")
+    private Integer installmentsCount;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credit_card_id")
     private CreditCard creditCard;
+
+    /**
+     * true quando esse lançamento não deve entrar na soma de despesa/receita do totalizador
+     * (ver EntryRepository.sumByFiltersAccrual) — mas continua aparecendo normalmente na lista de
+     * Lançamentos, pra não esconder nada do usuário. Casos: transferência entre as próprias
+     * contas do usuário, e o débito em conta que paga uma fatura de cartão já contada como
+     * despesa quando a compra foi feita (ver TransactionImportService.importForAccount).
+     */
+    @Column(name = "excluded_from_totals", nullable = false)
+    @Builder.Default
+    private boolean excludedFromTotals = false;
 
     public boolean isOverdueAsOf(LocalDate referenceDate) {
         return status == EntryStatus.PENDENTE && dueDate.isBefore(referenceDate);

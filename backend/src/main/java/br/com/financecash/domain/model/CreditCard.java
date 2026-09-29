@@ -35,6 +35,16 @@ public class CreditCard {
     @Column(name = "bank_name", nullable = false)
     private String bankName;
 
+    /**
+     * Bandeira do cartão ("VISA", "MASTERCARD", ...), como a Pluggy manda em creditData.brand()
+     * — guardada separada do bankName desde a migration V7 (01/10, quinta rodada) pra permitir
+     * montar um nome curto de exibição ("Bradesco Visa") sem depender de reprocessar o texto de
+     * CreditCard.name. Pode ser null pra cartão cadastrado manualmente ou sincronizado antes
+     * dessa mudança (até o próximo sync preencher).
+     */
+    @Column(name = "brand")
+    private String brand;
+
     @Column(name = "closing_day", nullable = false)
     private int closingDay;
 

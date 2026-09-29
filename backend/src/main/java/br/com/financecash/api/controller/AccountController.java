@@ -23,9 +23,15 @@ public class AccountController {
         this.accountService = accountService;
     }
 
+    /**
+     * Lista as contas do usuário. Por padrão só as ativas (usado nos seletores de conta ao
+     * criar lançamento/parcelamento — não faz sentido oferecer uma conta desativada ali).
+     * A tela Contas & Saldos passa includeInactive=true pra também mostrar as desativadas e
+     * permitir reativá-las.
+     */
     @GetMapping
-    public List<AccountDTO> list() {
-        return accountService.listActive();
+    public List<AccountDTO> list(@RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive) {
+        return includeInactive ? accountService.listAll() : accountService.listActive();
     }
 
     @PostMapping
@@ -48,6 +54,12 @@ public class AccountController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
         accountService.deactivate(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/activate")
+    public ResponseEntity<Void> activate(@PathVariable UUID id) {
+        accountService.activate(id);
         return ResponseEntity.noContent().build();
     }
 }

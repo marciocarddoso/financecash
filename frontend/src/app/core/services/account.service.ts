@@ -9,8 +9,11 @@ export class AccountService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiBaseUrl}/accounts`;
 
-  list(): Observable<Account[]> {
-    return this.http.get<Account[]>(this.baseUrl);
+  /** Por padrão só contas ativas (uso nos seletores de conta). Contas & Saldos passa
+   * includeInactive=true pra também mostrar as desativadas e permitir reativá-las. */
+  list(includeInactive = false): Observable<Account[]> {
+    const params: Record<string, string> = includeInactive ? { includeInactive: 'true' } : {};
+    return this.http.get<Account[]>(this.baseUrl, { params });
   }
 
   create(request: AccountCreateRequest): Observable<Account> {
@@ -27,5 +30,9 @@ export class AccountService {
 
   deactivate(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  activate(id: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${id}/activate`, {});
   }
 }

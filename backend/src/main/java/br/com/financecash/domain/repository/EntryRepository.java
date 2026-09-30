@@ -36,19 +36,32 @@ public interface EntryRepository extends JpaRepository<Entry, UUID> {
     List<Entry> findPendingBetween(@Param("ownerId") UUID ownerId, @Param("from") LocalDate from, @Param("to") LocalDate to);
 
     /**
-     * Busca paginada da tela de Lançamentos, com todos os filtros opcionais (null = "não
-     * filtra por esse campo"). {@code description} já vem normalizada (minúsculo, sem espaço
-     * nas pontas) pelo EntryService — a comparação aqui usa lower()/like só do lado da coluna.
+     * Achado real (30/09, relatado pelo Marcio: lancamentos sem cartao -- Manual, Recorrencia,
+     * Importado/extrato -- simplesmente nao apareciam na tela de Lancamentos, em nenhuma pagina,
+     * mesmo com todos os filtros em branco): o JPQL antigo navegava direto em
+     * {@code e.creditCard.bankName}. Em JPQL, atravessar uma associacao ate um atributo que nao
+     * eh o id forca um JOIN implicito, e esse join eh INNER por padrao -- entao, mesmo com a
+     * condicao inteira protegida por "(:bankName is null or ...)", o JOIN em si nao eh condicional:
+     * vira um {@code INNER JOIN credit_card} incondicional no SQL gerado, que elimina toda linha
+     * onde credit_card_id eh nulo (ou seja, todo lancamento que nao eh de cartao) antes mesmo da
+     * clausula WHERE ser avaliada. Corrigido trocando por um LEFT JOIN explicito com {@code e.creditCard cc}
+     * e navegando por {@code cc.bankName}/{@code cc.id} -- mesmo bug corrigido em sumByFiltersAccrual
+     * logo abaixo (a mesma query, so que somando em vez de paginar).
+     *
+     * <p>Busca paginada da tela de Lancamentos, com todos os filtros opcionais (null = "nao
+     * filtra por esse campo"). {@code description} ja vem normalizada (minusculo, sem espaco
+     * nas pontas) pelo EntryService -- a comparacao aqui usa lower()/like so do lado da coluna.
      */
     @Query("""
             select e from Entry e
+            left join e.creditCard cc
             where e.owner.id = :ownerId
               and e.dueDate between :dueDateFrom and :dueDateTo
               and (:categoryId is null or e.category.id = :categoryId)
               and (:status is null or e.status = :status)
               and (:origin is null or e.origin = :origin)
-              and (:creditCardId is null or e.creditCard.id = :creditCardId)
-              and (:bankName is null or lower(e.creditCard.bankName) = lower(cast(:bankName as string)))
+              and (:creditCardId is null or cc.id = :creditCardId)
+              and (:bankName is null or lower(cc.bankName) = lower(cast(:bankName as string)))
               and (:description is null or lower(e.description) like concat('%', cast(:description as string), '%'))
             """)
     Page<Entry> search(
@@ -71,6 +84,12 @@ public interface EntryRepository extends JpaRepository<Entry, UUID> {
      * sumCardTotalsAccrual/InvoiceSettlementRepository.sumByCreditCardCash pra quebra por cartão
      * (quinta rodada, 01/10, a pedido do Marcio: "quero ver o totalizador por cartão e por
      * banco").
+     *
+     * <p>Mesmo bug do join implicito documentado em search() acima (achado 30/09): navegar em
+     * {@code e.creditCard.bankName} forca INNER JOIN incondicional e some com lancamentos sem
+     * cartao -- aqui isso inflava pra menos o "Totalizador" da tela de Lancamentos (contava so
+     * as despesas/receitas de cartao, nao o total real do periodo). Corrigido com LEFT JOIN
+     * explicito, igual a correcao em search().
      */
     @Query("""
             select
@@ -78,13 +97,14 @@ public interface EntryRepository extends JpaRepository<Entry, UUID> {
                 coalesce(sum(case when e.type = 'RECEITA' and e.excludedFromTotals = false then e.amount else 0 end), 0) as totalReceita,
                 count(e) as entryCount
             from Entry e
+            left join e.creditCard cc
             where e.owner.id = :ownerId
               and e.dueDate between :dueDateFrom and :dueDateTo
               and (:categoryId is null or e.category.id = :categoryId)
               and (:status is null or e.status = :status)
               and (:origin is null or e.origin = :origin)
-              and (:creditCardId is null or e.creditCard.id = :creditCardId)
-              and (:bankName is null or lower(e.creditCard.bankName) = lower(cast(:bankName as string)))
+              and (:creditCardId is null or cc.id = :creditCardId)
+              and (:bankName is null or lower(cc.bankName) = lower(cast(:bankName as string)))
               and (:description is null or lower(e.description) like concat('%', cast(:description as string), '%'))
             """)
     EntryTotalsProjection sumByFiltersAccrual(
@@ -115,14 +135,15 @@ public interface EntryRepository extends JpaRepository<Entry, UUID> {
                 coalesce(sum(case when e.type = 'RECEITA' and e.excludedFromTotals = false then e.amount else 0 end), 0) as totalReceita,
                 count(e) as entryCount
             from Entry e
+            left join e.creditCard cc
             where e.owner.id = :ownerId
               and e.creditCard is null
               and e.status = 'PAGO'
               and e.paymentDate between :from and :to
               and (:categoryId is null or e.category.id = :categoryId)
               and (:origin is null or e.origin = :origin)
-              and (:creditCardId is null or e.creditCard.id = :creditCardId)
-              and (:bankName is null or lower(e.creditCard.bankName) = lower(cast(:bankName as string)))
+              and (:creditCardId is null or cc.id = :creditCardId)
+              and (:bankName is null or lower(cc.bankName) = lower(cast(:bankName as string)))
               and (:description is null or lower(e.description) like concat('%', cast(:description as string), '%'))
             """)
     EntryTotalsProjection sumByFiltersCash(

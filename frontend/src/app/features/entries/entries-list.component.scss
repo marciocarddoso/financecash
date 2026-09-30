@@ -69,10 +69,12 @@
 }
 
 .fc-actions-menu {
-  position: absolute;
-  right: 0.5rem;
-  top: 100%;
-  z-index: 10;
+  // 30/09: position fixed (coordenadas calculadas em TS, ver actionsMenuPosition) em vez de
+  // absolute dentro de .fc-table-wrap -- essa tem overflow-x: auto, e por especificação do CSS
+  // isso também vira overflow-y: auto nela (não dá pra ter só um eixo "visible"), então um menu
+  // absolute cortava/quebrava perto do fim da tabela. Fixed escapa desse clipping.
+  position: fixed;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -171,10 +173,56 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--fc-color-border);
+
+  &__pages {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  &__page {
+    min-width: 2rem;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--fc-color-border);
+    border-radius: 6px;
+    background: none;
+    color: var(--fc-color-primary);
+    cursor: pointer;
+    font-size: 0.85rem;
+
+    &:hover:not(:disabled) {
+      background: var(--fc-color-bg);
+    }
+
+    &--active {
+      background: var(--fc-color-primary);
+      border-color: var(--fc-color-primary);
+      color: #fff;
+      cursor: default;
+      font-weight: 600;
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  &__ellipsis {
+    padding: 0 0.25rem;
+    color: var(--fc-color-text-muted);
+  }
+
+  &__summary {
+    width: 100%;
+    text-align: center;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+  }
 }
 
 .fc-totals {

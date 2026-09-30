@@ -87,6 +87,32 @@ export class EntriesListComponent implements OnInit, OnDestroy {
   readonly totalElements = signal(0);
 
   /**
+   * Números de página exibidos na paginação (05/10, a pedido do Marcio: poder clicar direto na
+   * página 4 em vez de só avançar/voltar uma de cada vez, e ter um botão pra última página).
+   * Sempre mostra a primeira e a última página, a página atual e uma vizinha de cada lado; o
+   * resto vira "…" pra não estourar a tela quando há muitas páginas.
+   */
+  readonly pageNumbers = computed<Array<number | 'ellipsis'>>(() => {
+    const total = this.totalPages();
+    const current = this.page();
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i);
+    }
+    const pages = new Set<number>([0, total - 1, current]);
+    if (current - 1 >= 0) pages.add(current - 1);
+    if (current + 1 <= total - 1) pages.add(current + 1);
+    const sorted = Array.from(pages).sort((a, b) => a - b);
+    const result: Array<number | 'ellipsis'> = [];
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i] - sorted[i - 1] > 1) {
+        result.push('ellipsis');
+      }
+      result.push(sorted[i]);
+    }
+    return result;
+  });
+
+  /**
    * Total do resultado filtrado inteiro (não só a página atual) — a pedido do Marcio (01/10):
    * os filtros de período/cartão já existiam, faltava um totalizador pra conferência (ex.:
    * bater o valor de uma fatura de cartão contra o app do banco). bankSettlements só vem
@@ -102,6 +128,15 @@ export class EntriesListComponent implements OnInit, OnDestroy {
    * tabela (relatado pelo Marcio, sexta rodada). null = nenhum menu aberto.
    */
   readonly openActionsMenuId = signal<string | null>(null);
+  /**
+   * Posição (coordenadas de viewport) do menu de ações aberto (30/09, a pedido do Marcio: o
+   * menu ficava cortado/quebrava o layout quando a linha estava perto do fim da tabela, porque
+   * `.fc-table-wrap` tem `overflow-x: auto` e isso também limita o overflow vertical por
+   * especificação do CSS — o menu, posicionado `absolute` dentro dela, ficava preso nesse
+   * clipping). Calculada em JS a partir do botão "⋮" clicado e aplicada com `position: fixed`,
+   * que escapa do clipping da tabela; abre pra cima quando não cabe embaixo.
+   */
+  readonly actionsMenuPosition = signal<{ top: number; left: number } | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     description: ['', Validators.required],
@@ -138,16 +173,36 @@ export class EntriesListComponent implements OnInit, OnDestroy {
     this.reload();
   }
 
-  /** Abre/fecha o menu de ações (⋮) de uma linha; fecha qualquer outro que estivesse aberto. */
+  /**
+   * Abre/fecha o menu de ações (⋮) de uma linha; fecha qualquer outro que estivesse aberto.
+   * Calcula a posição do menu a partir do botão clicado (ver actionsMenuPosition) em vez de
+   * deixar o CSS posicionar `absolute` dentro da tabela, que cortava o menu em linhas perto do
+   * fim da tela.
+   */
   toggleActionsMenu(entryId: string, event: Event): void {
     event.stopPropagation();
-    this.openActionsMenuId.set(this.openActionsMenuId() === entryId ? null : entryId);
+    if (this.openActionsMenuId() === entryId) {
+      this.openActionsMenuId.set(null);
+      this.actionsMenuPosition.set(null);
+      return;
+    }
+    const button = event.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+    const menuWidth = 170;
+    const estimatedMenuHeight = 140;
+    const opensUpward = rect.bottom + estimatedMenuHeight + 8 > window.innerHeight;
+    this.actionsMenuPosition.set({
+      left: Math.max(8, rect.right - menuWidth),
+      top: opensUpward ? rect.top - estimatedMenuHeight - 4 : rect.bottom + 4,
+    });
+    this.openActionsMenuId.set(entryId);
   }
 
   /** Fecha o menu de ações ao clicar em qualquer lugar fora dele. */
   @HostListener('document:click')
   closeActionsMenu(): void {
     this.openActionsMenuId.set(null);
+    this.actionsMenuPosition.set(null);
   }
 
   reload(): void {
@@ -155,6 +210,7 @@ export class EntriesListComponent implements OnInit, OnDestroy {
     this.loadError.set(null);
     this.selectedIds.set(new Set());
     this.openActionsMenuId.set(null);
+    this.actionsMenuPosition.set(null);
     const filters = {
       from: this.from(),
       to: this.to(),

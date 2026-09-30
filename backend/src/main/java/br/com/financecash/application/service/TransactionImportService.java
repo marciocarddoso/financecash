@@ -278,24 +278,34 @@ public class TransactionImportService {
     private static final String OWN_ACCOUNT_TRANSFER_CATEGORY_PREFIX = "same person transfer";
 
     /**
-     * Categorias que a Pluggy manda (em inglês) pra transferência genérica/PIX — achado em
-     * produção (01/10, quarta rodada): o Marcio confirmou que, no caso dele, praticamente tudo
-     * que cai nessas categorias em setembro era repasse pessoal (empréstimo com a esposa,
-     * dinheiro de um amigo pra comprar remédio pra ele) — R$13.670,61 de receita e R$3.106,76 de
-     * despesa num mês só, sem ser renda/gasto real. Ele topou excluir por padrão, ciente do
-     * risco de esconder uma renda real que um dia venha categorizada como "Transferências"
-     * genérico — nesse caso o marcador manual (ver EntryService.excludeFromTotals/
-     * includeInTotals) serve pra reverter caso a caso.
+     * Achado em produção (29/09, nona rodada — revertendo a decisão da quarta rodada de 01/10):
+     * a categoria genérica "Transfers"/"Transfer - Pix" que a Pluggy manda NÃO é um sinal
+     * confiável de transferência entre as próprias contas — o Marcio tinha topado excluir por
+     * padrão tudo que cai nela, mas ao conferir o preview de retroatividade com dado real
+     * apareceram pagamentos/doações reais pra terceiros (ex.: R$60 pra "Juliana Gonçalves de
+     * Lima", R$500 de doação pra "Thiago de Castilho Pacheco") caindo na mesma categoria que
+     * repasse/empréstimo pessoal de verdade — ou seja, exatamente o risco que já tinha sido
+     * levantado na terceira rodada e não tinha se confirmado até agora. Removido o match por
+     * categoria: essa categoria não exclui mais nada automaticamente, sozinha. Quem continua
+     * confiável: o prefixo "Same person transfer" (transferência entre as próprias contas,
+     * marcado pela própria Pluggy com um sinal específico, não a categoria genérica) e o texto
+     * "pix key transfer" (achado no mesmo preview: um texto genérico, sem nome de pessoa, que o
+     * próprio Marcio confirmou ser transferência dele mesmo entre contas pra pagar cartão/conta/
+     * investimento). Repasse/empréstimo pessoal (ex.: dinheiro emprestado com a esposa, cartão
+     * emprestado pra alguém e devolvido por parcela) volta a depender só do marcador manual
+     * (EntryService.excludeFromTotals/includeInTotals) — não tem como o sistema adivinhar isso
+     * de um nome de categoria sem arriscar esconder renda/gasto real de novo.
      */
-    private static final List<String> GENERIC_TRANSFER_CATEGORY_MARKERS = List.of(
-            "transfers", "transfer - pix"
+    private static final List<String> OWN_TRANSFER_DESCRIPTION_MARKERS = List.of(
+            "pix key transfer"
     );
 
     /**
      * true quando o lançamento não deve contar no totalizador de despesa/receita (ver
      * EntryRepository.sumByFiltersAccrual), mas continua aparecendo na lista de Lançamentos — ver
-     * javadoc de importForAccount pros casos automáticos (transferência própria, transferência
-     * genérica/PIX e pagamento de fatura pelo lado da conta). Além disso, o usuário pode marcar
+     * javadoc de importForAccount pros casos automáticos (transferência própria e pagamento de
+     * fatura pelo lado da conta) e o comentário de OWN_TRANSFER_DESCRIPTION_MARKERS acima pro
+     * porquê da categoria genérica não entrar mais aqui. Além disso, o usuário pode marcar
      * qualquer lançamento manualmente (ver EntryService.excludeFromTotals) pra casos que nenhum
      * sinal do banco identifica, como repasse/empréstimo pessoal.
      */
@@ -304,8 +314,11 @@ public class TransactionImportService {
         if (category != null && category.startsWith(OWN_ACCOUNT_TRANSFER_CATEGORY_PREFIX)) {
             return true;
         }
-        if (category != null && GENERIC_TRANSFER_CATEGORY_MARKERS.contains(category)) {
-            return true;
+        if (description != null) {
+            String lowerDescription = description.toLowerCase(Locale.ROOT);
+            if (OWN_TRANSFER_DESCRIPTION_MARKERS.stream().anyMatch(lowerDescription::contains)) {
+                return true;
+            }
         }
         return isInvoiceSettlementTransaction(tx, description);
     }

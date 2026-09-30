@@ -64,15 +64,31 @@ public class DashboardService {
                 .map(EntryDTO::from)
                 .toList();
 
-        BigDecimal totalPendingToday = sum(monthEntries, e ->
+        // Achado real (29/09, relatado pelo Marcio comparando com a planilha dele — o mesmo
+        // R$41.792,99/R$33.347,57 já investigado antes na "quarta rodada do totalizador", ver
+        // docs/ROADMAP.md): o Dashboard somava TODOS os lançamentos do mês na conta, inclusive
+        // os marcados como `excludedFromTotals` (transferência entre as próprias contas,
+        // liquidação de fatura contada em duplicidade no lado da conta que pagou, e qualquer
+        // outro que o próprio Marcio excluiu manualmente pelo botão "Excluir do total"). O
+        // totalizador da tela de Lançamentos já respeita essa flag desde a quarta rodada
+        // (`EntryRepository.sumByFilters*`) — o Dashboard nunca foi atualizado junto, porque
+        // calcula os totais à mão em Java a partir de `monthEntries`, sem passar pela mesma
+        // query. Corrigido filtrando `excludedFromTotals` antes de somar, sem esconder nada da
+        // lista de "Contas de hoje"/"Atrasadas" (essas continuam mostrando todo lançamento,
+        // igual a tela de Lançamentos faz com a tag "fora do total").
+        List<Entry> summableEntries = monthEntries.stream()
+                .filter(e -> !e.isExcludedFromTotals())
+                .toList();
+
+        BigDecimal totalPendingToday = sum(summableEntries, e ->
                 e.getDueDate().equals(referenceDate) && e.getType() == EntryType.DESPESA && e.getStatus() != EntryStatus.PAGO && e.getStatus() != EntryStatus.CANCELADO);
 
         // "A pagar no mês": despesas do mês que AINDA não foram pagas (PENDENTE/ATRASADO).
-        BigDecimal totalPendingMonth = sum(monthEntries, e ->
+        BigDecimal totalPendingMonth = sum(summableEntries, e ->
                 e.getType() == EntryType.DESPESA && e.getStatus() != EntryStatus.PAGO && e.getStatus() != EntryStatus.CANCELADO);
 
         // "Já pago no mês": despesas do mês com status PAGO.
-        BigDecimal totalPaidMonth = sum(monthEntries, e ->
+        BigDecimal totalPaidMonth = sum(summableEntries, e ->
                 e.getType() == EntryType.DESPESA && e.getStatus() == EntryStatus.PAGO);
 
         // Total geral de despesas do mês, independente de já ter sido paga ou não — é o valor
@@ -83,12 +99,12 @@ public class DashboardService {
         // Receita já recebida no mês (status PAGO) — esse dinheiro já está refletido no saldo
         // consolidado (que vem do BalanceSnapshot mais recente de cada conta), então NÃO entra
         // na projeção de saldo abaixo.
-        BigDecimal totalIncomePaidMonth = sum(monthEntries, e ->
+        BigDecimal totalIncomePaidMonth = sum(summableEntries, e ->
                 e.getType() == EntryType.RECEITA && e.getStatus() == EntryStatus.PAGO);
 
         // Receita prevista do mês que AINDA não foi recebida — é essa, e só essa, que soma na
         // projeção de saldo de fim de mês.
-        BigDecimal totalIncomePendingMonth = sum(monthEntries, e ->
+        BigDecimal totalIncomePendingMonth = sum(summableEntries, e ->
                 e.getType() == EntryType.RECEITA && e.getStatus() != EntryStatus.PAGO && e.getStatus() != EntryStatus.CANCELADO);
 
         BigDecimal consolidatedBalance = accountService.consolidatedBalance(user.getId());

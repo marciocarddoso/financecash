@@ -49,12 +49,17 @@ class DashboardServiceTest {
     }
 
     private Entry entry(AppUser owner, EntryType type, EntryStatus status, BigDecimal amount, LocalDate dueDate) {
+        return entry(owner, type, status, amount, dueDate, false);
+    }
+
+    private Entry entry(AppUser owner, EntryType type, EntryStatus status, BigDecimal amount, LocalDate dueDate,
+                         boolean excludedFromTotals) {
         Category category = Category.builder().id(UUID.randomUUID()).owner(owner)
                 .name(type == EntryType.RECEITA ? "Salário" : "Mercado")
                 .type(type == EntryType.RECEITA ? CategoryType.RECEITA : CategoryType.DESPESA).active(true).build();
         return Entry.builder().id(UUID.randomUUID()).owner(owner).description("Lançamento")
                 .amount(amount).dueDate(dueDate).type(type).status(status).origin(EntryOrigin.MANUAL)
-                .category(category).build();
+                .category(category).excludedFromTotals(excludedFromTotals).build();
     }
 
     @Test
@@ -82,6 +87,33 @@ class DashboardServiceTest {
         assertThat(dashboard.projectedBalanceEndOfMonth()).isEqualByComparingTo("5100.00");
         assertThat(dashboard.totalIncomePaidMonth()).isEqualByComparingTo("1000.00");
         assertThat(dashboard.totalIncomePendingMonth()).isEqualByComparingTo("300.00");
+    }
+
+    @Test
+    void naoDeveSomarLancamentoMarcadoComoExcludedFromTotals() {
+        // Achado real (29/09, relatado pelo Marcio comparando com a planilha dele): o Dashboard
+        // somava TODO lançamento do mês, inclusive os marcados excludedFromTotals (transferência
+        // entre contas próprias, liquidação de fatura contada em duplicidade) — o totalizador de
+        // Lançamentos já respeitava essa flag desde a quarta rodada, mas o Dashboard nunca tinha
+        // sido atualizado junto, porque calcula os totais à mão a partir de outra query.
+        AppUser user = user();
+        LocalDate today = LocalDate.of(2026, 9, 15);
+
+        Entry despesaNormal = entry(user, EntryType.DESPESA, EntryStatus.PAGO, new BigDecimal("100.00"), today);
+        Entry transferenciaExcluida = entry(user, EntryType.DESPESA, EntryStatus.PAGO, new BigDecimal("5000.00"),
+                today, true);
+        Entry receitaExcluida = entry(user, EntryType.RECEITA, EntryStatus.PAGO, new BigDecimal("3000.00"),
+                today, true);
+
+        when(entryRepository.findByOwnerIdAndDueDateBetweenOrderByDueDateAsc(eq(user.getId()), any(), any()))
+                .thenReturn(List.of(despesaNormal, transferenciaExcluida, receitaExcluida));
+        when(accountService.consolidatedBalance(user.getId())).thenReturn(BigDecimal.ZERO);
+
+        DashboardResponse dashboard = service().getDashboardForUser(user, today);
+
+        assertThat(dashboard.totalPaidMonth()).isEqualByComparingTo("100.00");
+        assertThat(dashboard.totalExpensesMonth()).isEqualByComparingTo("100.00");
+        assertThat(dashboard.totalIncomePaidMonth()).isEqualByComparingTo("0.00");
     }
 
     @Test

@@ -44,6 +44,10 @@ class MonthClosingServiceTest {
     }
 
     private Entry entry(EntryType type, EntryStatus status, String amount, Category category) {
+        return entry(type, status, amount, category, false);
+    }
+
+    private Entry entry(EntryType type, EntryStatus status, String amount, Category category, boolean excludedFromTotals) {
         return Entry.builder()
                 .id(UUID.randomUUID())
                 .description("teste")
@@ -52,6 +56,7 @@ class MonthClosingServiceTest {
                 .type(type)
                 .status(status)
                 .category(category)
+                .excludedFromTotals(excludedFromTotals)
                 .build();
     }
 
@@ -87,5 +92,28 @@ class MonthClosingServiceTest {
         assertThat(response.categorias().get(0).categoryName()).isEqualTo("Mercado");
         assertThat(response.categorias().get(0).previsto()).isEqualByComparingTo("50.00");
         assertThat(response.categorias().get(0).realizado()).isEqualByComparingTo("30.00");
+    }
+
+    /**
+     * Mesma classe de bug encontrada em 29/09 no Dashboard: o Fechamento do Mês somava
+     * transferências entre contas e débitos duplicados de quitação de fatura porque
+     * excludedFromTotals nunca tinha sido considerado aqui — só na tela de Lançamentos.
+     */
+    @Test
+    void naoDeveSomarLancamentoMarcadoComoExcludedFromTotals() {
+        when(entryRepository.findByOwnerIdAndDueDateBetweenOrderByDueDateAsc(any(), any(), any()))
+                .thenReturn(List.of(
+                        entry(EntryType.DESPESA, EntryStatus.PAGO, "100.00", mercado),
+                        entry(EntryType.DESPESA, EntryStatus.PAGO, "5000.00", mercado, true),
+                        entry(EntryType.RECEITA, EntryStatus.PAGO, "3000.00", mercado, true)
+                ));
+
+        MonthClosingResponse response = service.getMonthClosing(2026, 9);
+
+        assertThat(response.realizadoDespesa()).isEqualByComparingTo("100.00");
+        assertThat(response.previstoDespesa()).isEqualByComparingTo("100.00");
+        assertThat(response.realizadoReceita()).isEqualByComparingTo("0.00");
+        assertThat(response.categorias()).hasSize(1);
+        assertThat(response.categorias().get(0).realizado()).isEqualByComparingTo("100.00");
     }
 }

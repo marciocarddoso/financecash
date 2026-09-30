@@ -50,10 +50,15 @@ public class MonthClosingService {
         AppUser user = currentUserProvider.getCurrentUser();
         YearMonth yearMonth = YearMonth.of(year, month);
 
+        // Achado real (29/09, mesmo bug do Dashboard — ver DashboardService.getDashboardForUser):
+        // essa soma incluía lançamento marcado `excludedFromTotals` (transferência entre contas
+        // próprias, liquidação de fatura contada em duplicidade no lado da conta que pagou),
+        // inflando previsto/realizado igual inflava o Dashboard. Corrigido filtrando junto com o
+        // CANCELADO que já era excluído.
         List<Entry> entries = entryRepository
                 .findByOwnerIdAndDueDateBetweenOrderByDueDateAsc(user.getId(), yearMonth.atDay(1), yearMonth.atEndOfMonth())
                 .stream()
-                .filter(e -> e.getStatus() != EntryStatus.CANCELADO)
+                .filter(e -> e.getStatus() != EntryStatus.CANCELADO && !e.isExcludedFromTotals())
                 .toList();
 
         BigDecimal previstoReceita = sum(entries, e -> e.getType() == EntryType.RECEITA);

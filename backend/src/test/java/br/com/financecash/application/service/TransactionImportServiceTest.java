@@ -150,11 +150,17 @@ class TransactionImportServiceTest {
         assertThat(captor.getValue().isExcludedFromTotals()).isTrue();
     }
 
-    void deveMarcarComoExcluidoDoTotalizadorQuandoForTransferenciaGenericaOuPix() {
-        // Achado em produção (01/10, quarta rodada): o Marcio confirmou que, no caso dele,
-        // "Transferências" e "Transferência - PIX" eram majoritariamente repasse pessoal
-        // (empréstimo com a esposa, dinheiro de um amigo pra remédio), não renda/gasto real —
-        // topou excluir por padrão (com o marcador manual como escape pra reverter um caso a caso).
+    @Test
+    void naoDeveExcluirDoTotalizadorSoPelaCategoriaGenericaDeTransferencia() {
+        // Achado em produção (29/09, nona rodada — revertendo a decisão da quarta rodada de
+        // 01/10): esse teste cobria o comportamento antigo (categoria "Transfers"/"Transfer -
+        // PIX" sozinha já excluía do totalizador) — só que nunca tinha @Test em cima, então
+        // nunca rodou de verdade. Ao conferir o preview de retroatividade com dado real do
+        // Marcio, apareceram pagamento/doação reais pra terceiros (ex.: R$60 pra "Juliana
+        // Gonçalves de Lima", R$500 de doação pra "Thiago de Castilho Pacheco") na mesma
+        // categoria genérica — provando que ela sozinha não é sinal confiável. Removido o match
+        // por categoria; agora esse tipo de lançamento entra normal no total, e só sai se o
+        // próprio usuário marcar manualmente (EntryService.excludeFromTotals).
         AppUser user = user();
         Account account = account(user);
         LocalDate from = LocalDate.of(2026, 9, 1);
@@ -173,7 +179,32 @@ class TransactionImportServiceTest {
 
         ArgumentCaptor<Entry> captor = ArgumentCaptor.forClass(Entry.class);
         verify(entryRepository, times(2)).save(captor.capture());
-        assertThat(captor.getAllValues()).allSatisfy(entry -> assertThat(entry.isExcludedFromTotals()).isTrue());
+        assertThat(captor.getAllValues()).allSatisfy(entry -> assertThat(entry.isExcludedFromTotals()).isFalse());
+    }
+
+    @Test
+    void deveMarcarComoExcluidoDoTotalizadorQuandoDescricaoForPixKeyTransfer() {
+        // Mesmo achado da nona rodada acima: "pix key transfer" é um texto genérico (sem nome de
+        // pessoa) que apareceu no preview do Marcio, confirmado por ele como transferência dele
+        // mesmo entre contas pra pagar cartão/conta/investimento — diferente da categoria
+        // genérica, esse texto específico não teve nenhum falso positivo no dado real.
+        AppUser user = user();
+        Account account = account(user);
+        LocalDate from = LocalDate.of(2026, 9, 1);
+        LocalDate to = LocalDate.of(2026, 9, 28);
+
+        when(pluggyClient.listTransactions("acc-1", from, to)).thenReturn(List.of(
+                new PluggyClient.TransactionInfo("tx-7", "pix key transfer", new BigDecimal("-435.00"),
+                        LocalDate.of(2026, 9, 12), "DEBIT", "POSTED", null, null)
+        ));
+        when(categoryRepository.findByOwnerIdAndNameIgnoreCase(any(), anyString())).thenReturn(Optional.empty());
+        when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service().importForAccount(user, account, "acc-1", from, to);
+
+        ArgumentCaptor<Entry> captor = ArgumentCaptor.forClass(Entry.class);
+        verify(entryRepository).save(captor.capture());
+        assertThat(captor.getValue().isExcludedFromTotals()).isTrue();
     }
 
     @Test

@@ -190,12 +190,20 @@ public interface EntryRepository extends JpaRepository<Entry, UUID> {
         BigDecimal getReceita();
     }
 
+    /**
+     * Relatório "onde eu mais gasto" (ReportService). Mesma classe de bug encontrada em
+     * DashboardService/MonthClosingService em 29/09: faltava excluir e.excludedFromTotals = true
+     * (transferências entre contas, débitos duplicados de quitação de fatura) da soma — corrigido
+     * junto com os outros dois pontos, senão o relatório por categoria continuaria inflado mesmo
+     * depois do Dashboard estar certo.
+     */
     @Query("""
             select e.category.id as categoryId, e.category.name as categoryName, e.category.colorHex as colorHex,
                    sum(e.amount) as total, count(e) as entryCount
             from Entry e
             where e.owner.id = :ownerId
               and e.type = 'DESPESA'
+              and e.excludedFromTotals = false
               and e.dueDate between :from and :to
             group by e.category.id, e.category.name, e.category.colorHex
             order by sum(e.amount) desc
